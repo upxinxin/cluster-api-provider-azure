@@ -23,6 +23,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network"
 	"github.com/Azure/go-autorest/autorest"
 	azureautorest "github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/pkg/errors"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
@@ -66,6 +67,11 @@ func (ac *AzureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.Resou
 	publicip, ok := parameters.(network.PublicIPAddress)
 	if !ok {
 		return nil, nil, errors.Errorf("%T is not a network.PublicIPAddress", parameters)
+	}
+
+	publicip.ExtendedLocation = &network.ExtendedLocation{
+		Name: to.StringPtr("microsoftrrdclab3"),
+		Type: network.ExtendedLocationTypes("EdgeZone"),
 	}
 
 	createFuture, err := ac.publicips.CreateOrUpdate(ctx, spec.ResourceGroupName(), spec.ResourceName(), publicip)

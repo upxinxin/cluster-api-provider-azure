@@ -69,6 +69,11 @@ func (ac *AzureClient) CreateOrUpdateAsync(ctx context.Context, spec azure.Resou
 		return nil, nil, errors.Errorf("%T is not a compute.VirtualMachine", parameters)
 	}
 
+	vm.ExtendedLocation = &compute.ExtendedLocation{
+		Name: to.StringPtr("microsoftrrdclab3"),
+		Type: compute.ExtendedLocationTypes("EdgeZone"),
+	}
+
 	createFuture, err := ac.virtualmachines.CreateOrUpdate(ctx, spec.ResourceGroupName(), spec.ResourceName(), vm)
 	if err != nil {
 		return nil, nil, err

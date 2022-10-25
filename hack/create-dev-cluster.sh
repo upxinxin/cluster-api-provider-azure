@@ -26,14 +26,14 @@ capz::util::ensure_azure_envs
 
 make envsubst
 
-export REGISTRY="${REGISTRY:-registry.local/fake}"
+export REGISTRY="docker.io/13338886898"
 
 # Cluster settings.
-export CLUSTER_NAME="${CLUSTER_NAME:-capz-test}"
+export CLUSTER_NAME="${CLUSTER_NAME:-xinyi-test}"
 export AZURE_VNET_NAME=${CLUSTER_NAME}-vnet
 
 # Azure settings.
-export AZURE_LOCATION="${AZURE_LOCATION:-southcentralus}"
+export AZURE_LOCATION="eastus2euap"
 export AZURE_RESOURCE_GROUP=${CLUSTER_NAME}
 
 AZURE_SUBSCRIPTION_ID_B64="$(echo -n "$AZURE_SUBSCRIPTION_ID" | base64 | tr -d '\n')"
@@ -48,8 +48,8 @@ export CONTROL_PLANE_MACHINE_COUNT=${CONTROL_PLANE_MACHINE_COUNT:-3}
 export AZURE_CONTROL_PLANE_MACHINE_TYPE="${CONTROL_PLANE_MACHINE_TYPE:-Standard_D2s_v3}"
 export AZURE_NODE_MACHINE_TYPE="${NODE_MACHINE_TYPE:-Standard_D2s_v3}"
 export WORKER_MACHINE_COUNT=${WORKER_MACHINE_COUNT:-2}
-export KUBERNETES_VERSION="${KUBERNETES_VERSION:-v1.23.9}"
-export CLUSTER_TEMPLATE="${CLUSTER_TEMPLATE:-cluster-template.yaml}"
+export KUBERNETES_VERSION="${KUBERNETES_VERSION:-v1.25.0}"
+export CLUSTER_TEMPLATE="${CLUSTER_TEMPLATE:-cluster-template-private-external.yaml}"
 
 # identity secret settings.
 export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"

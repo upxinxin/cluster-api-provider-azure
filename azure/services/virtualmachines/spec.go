@@ -343,8 +343,8 @@ func (s *VMSpec) getAvailabilitySet() *compute.SubResource {
 
 func (s *VMSpec) getZones() *[]string {
 	var zones *[]string
-	if s.Zone != "" {
-		zones = &[]string{s.Zone}
-	}
+	// if s.Zone != "" {
+	// 	zones = &[]string{s.Zone}
+	// }
 	return zones
 }

@@ -21,7 +21,7 @@ settings = {
     "kind_cluster_name": "capz",
     "capi_version": "v1.2.4",
     "cert_manager_version": "v1.1.0",
-    "kubernetes_version": "v1.23.9",
+    "kubernetes_version": "v1.25.0",
     "aks_kubernetes_version": "v1.23.8",
 }
 
@@ -220,7 +220,7 @@ def capz():
     # Set up an image build for the provider. The live update configuration syncs the output from the local_resource
     # build into the container.
     docker_build(
-        ref = "gcr.io/k8s-staging-cluster-api-azure/cluster-api-azure-controller",
+        ref = "docker.io/13338886898/cluster-api-azure-controller-amd64:dev",
         context = "./.tiltbuild/",
         dockerfile_contents = dockerfile_contents,
         target = "tilt",

@@ -94,6 +94,7 @@ func (s *PublicIPSpec) Parameters(existing interface{}) (params interface{}, err
 			DNSSettings:              dnsSettings,
 			IPTags:                   converters.IPTagsToSDK(s.IPTags),
 		},
-		Zones: to.StringSlicePtr(s.FailureDomains),
+		// Zones: to.StringSlicePtr(s.FailureDomains),
+		Zones: to.StringSlicePtr(make([]string, 0)),
 	}, nil
 }

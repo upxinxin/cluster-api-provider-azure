@@ -29,7 +29,7 @@ make envsubst
 export REGISTRY="docker.io/13338886898"
 
 # Cluster settings.
-export CLUSTER_NAME="${CLUSTER_NAME:-xinyi-test}"
+export CLUSTER_NAME="${CLUSTER_NAME:-xinyi-external-26}"
 export AZURE_VNET_NAME=${CLUSTER_NAME}-vnet
 
 # Azure settings.

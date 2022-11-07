@@ -151,6 +151,14 @@ func (s *ManagedControlPlaneScope) Location() string {
 	return s.ControlPlane.Spec.Location
 }
 
+// ExtendedLocation returns ExtendedLocation from the ControlPlane spec.
+func (s *ManagedControlPlaneScope) ExtendedLocation() infrav1.ExtendedLocationSpec {
+	extendedLocation := new(infrav1.ExtendedLocationSpec)
+	extendedLocation.Name = s.ControlPlane.Spec.ExtendedLocation.Name
+	extendedLocation.Type = s.ControlPlane.Spec.ExtendedLocation.Type
+	return *extendedLocation
+}
+
 // AvailabilitySetEnabled is always false for a managed control plane.
 func (s *ManagedControlPlaneScope) AvailabilitySetEnabled() bool {
 	return false // not applicable for a managed control plane

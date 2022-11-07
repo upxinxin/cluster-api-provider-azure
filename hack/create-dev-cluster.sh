@@ -29,12 +29,14 @@ make envsubst
 export REGISTRY="docker.io/13338886898"
 
 # Cluster settings.
-export CLUSTER_NAME="${CLUSTER_NAME:-xinyi-external-26}"
+export CLUSTER_NAME="${CLUSTER_NAME:-xinyi-external-03}"
 export AZURE_VNET_NAME=${CLUSTER_NAME}-vnet
 
 # Azure settings.
 export AZURE_LOCATION="eastus2euap"
 export AZURE_RESOURCE_GROUP=${CLUSTER_NAME}
+export AZURE_EXTENDEDLOCATION_TYPE="EdgeZone"
+export AZURE_EXTENDEDLOCATION_NAME="microsoftrrdclab3"
 
 AZURE_SUBSCRIPTION_ID_B64="$(echo -n "$AZURE_SUBSCRIPTION_ID" | base64 | tr -d '\n')"
 AZURE_TENANT_ID_B64="$(echo -n "$AZURE_TENANT_ID" | base64 | tr -d '\n')"
@@ -49,7 +51,7 @@ export AZURE_CONTROL_PLANE_MACHINE_TYPE="${CONTROL_PLANE_MACHINE_TYPE:-Standard_
 export AZURE_NODE_MACHINE_TYPE="${NODE_MACHINE_TYPE:-Standard_D2s_v3}"
 export WORKER_MACHINE_COUNT=${WORKER_MACHINE_COUNT:-2}
 export KUBERNETES_VERSION="${KUBERNETES_VERSION:-v1.25.0}"
-export CLUSTER_TEMPLATE="${CLUSTER_TEMPLATE:-cluster-template-private-external.yaml}"
+export CLUSTER_TEMPLATE="${CLUSTER_TEMPLATE:-cluster-template-private-external2.yaml}"
 
 # identity secret settings.
 export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"

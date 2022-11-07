@@ -144,29 +144,33 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 		if s.ControlPlaneOutboundLB() != nil {
 			for _, ip := range s.ControlPlaneOutboundLB().FrontendIPs {
 				controlPlaneOutboundIPSpecs = append(controlPlaneOutboundIPSpecs, &publicips.PublicIPSpec{
-					Name:           ip.PublicIP.Name,
-					ResourceGroup:  s.ResourceGroup(),
-					ClusterName:    s.ClusterName(),
-					DNSName:        "",    // Set to default value
-					IsIPv6:         false, // Set to default value
-					Location:       s.Location(),
-					FailureDomains: s.FailureDomains(),
-					AdditionalTags: s.AdditionalTags(),
+					Name:                 ip.PublicIP.Name,
+					ResourceGroup:        s.ResourceGroup(),
+					ClusterName:          s.ClusterName(),
+					DNSName:              "",    // Set to default value
+					IsIPv6:               false, // Set to default value
+					Location:             s.Location(),
+					ExtendedLocationType: s.ExtendedLocation().Type,
+					ExtendedLocationName: s.ExtendedLocation().Name,
+					FailureDomains:       s.FailureDomains(),
+					AdditionalTags:       s.AdditionalTags(),
 				})
 			}
 		}
 	} else {
 		controlPlaneOutboundIPSpecs = []azure.ResourceSpecGetter{
 			&publicips.PublicIPSpec{
-				Name:           s.APIServerPublicIP().Name,
-				ResourceGroup:  s.ResourceGroup(),
-				DNSName:        s.APIServerPublicIP().DNSName,
-				IsIPv6:         false, // Currently azure requires an IPv4 lb rule to enable IPv6
-				ClusterName:    s.ClusterName(),
-				Location:       s.Location(),
-				FailureDomains: s.FailureDomains(),
-				AdditionalTags: s.AdditionalTags(),
-				IPTags:         s.APIServerPublicIP().IPTags,
+				Name:                 s.APIServerPublicIP().Name,
+				ResourceGroup:        s.ResourceGroup(),
+				DNSName:              s.APIServerPublicIP().DNSName,
+				IsIPv6:               false, // Currently azure requires an IPv4 lb rule to enable IPv6
+				ClusterName:          s.ClusterName(),
+				Location:             s.Location(),
+				ExtendedLocationType: s.ExtendedLocation().Type,
+				ExtendedLocationName: s.ExtendedLocation().Name,
+				FailureDomains:       s.FailureDomains(),
+				AdditionalTags:       s.AdditionalTags(),
+				IPTags:               s.APIServerPublicIP().IPTags,
 			},
 		}
 	}
@@ -176,14 +180,16 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	if s.NodeOutboundLB() != nil {
 		for _, ip := range s.NodeOutboundLB().FrontendIPs {
 			publicIPSpecs = append(publicIPSpecs, &publicips.PublicIPSpec{
-				Name:           ip.PublicIP.Name,
-				ResourceGroup:  s.ResourceGroup(),
-				ClusterName:    s.ClusterName(),
-				DNSName:        "",    // Set to default value
-				IsIPv6:         false, // Set to default value
-				Location:       s.Location(),
-				FailureDomains: s.FailureDomains(),
-				AdditionalTags: s.AdditionalTags(),
+				Name:                 ip.PublicIP.Name,
+				ResourceGroup:        s.ResourceGroup(),
+				ClusterName:          s.ClusterName(),
+				DNSName:              "",    // Set to default value
+				IsIPv6:               false, // Set to default value
+				Location:             s.Location(),
+				ExtendedLocationType: s.ExtendedLocation().Type,
+				ExtendedLocationName: s.ExtendedLocation().Name,
+				FailureDomains:       s.FailureDomains(),
+				AdditionalTags:       s.AdditionalTags(),
 			})
 		}
 	}
@@ -193,15 +199,17 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	for _, subnet := range s.NodeSubnets() {
 		if subnet.IsNatGatewayEnabled() {
 			nodeNatGatewayIPSpecs = append(nodeNatGatewayIPSpecs, &publicips.PublicIPSpec{
-				Name:           subnet.NatGateway.NatGatewayIP.Name,
-				ResourceGroup:  s.ResourceGroup(),
-				DNSName:        subnet.NatGateway.NatGatewayIP.DNSName,
-				IsIPv6:         false, // Public IP is IPv4 by default
-				ClusterName:    s.ClusterName(),
-				Location:       s.Location(),
-				FailureDomains: s.FailureDomains(),
-				AdditionalTags: s.AdditionalTags(),
-				IPTags:         subnet.NatGateway.NatGatewayIP.IPTags,
+				Name:                 subnet.NatGateway.NatGatewayIP.Name,
+				ResourceGroup:        s.ResourceGroup(),
+				DNSName:              subnet.NatGateway.NatGatewayIP.DNSName,
+				IsIPv6:               false, // Public IP is IPv4 by default
+				ClusterName:          s.ClusterName(),
+				Location:             s.Location(),
+				ExtendedLocationType: s.ExtendedLocation().Type,
+				ExtendedLocationName: s.ExtendedLocation().Name,
+				FailureDomains:       s.FailureDomains(),
+				AdditionalTags:       s.AdditionalTags(),
+				IPTags:               subnet.NatGateway.NatGatewayIP.IPTags,
 			})
 		}
 		publicIPSpecs = append(publicIPSpecs, nodeNatGatewayIPSpecs...)
@@ -210,15 +218,17 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	if azureBastion := s.AzureBastion(); azureBastion != nil {
 		// public IP for Azure Bastion.
 		azureBastionPublicIP := &publicips.PublicIPSpec{
-			Name:           azureBastion.PublicIP.Name,
-			ResourceGroup:  s.ResourceGroup(),
-			DNSName:        azureBastion.PublicIP.DNSName,
-			IsIPv6:         false, // Public IP is IPv4 by default
-			ClusterName:    s.ClusterName(),
-			Location:       s.Location(),
-			FailureDomains: s.FailureDomains(),
-			AdditionalTags: s.AdditionalTags(),
-			IPTags:         azureBastion.PublicIP.IPTags,
+			Name:                 azureBastion.PublicIP.Name,
+			ResourceGroup:        s.ResourceGroup(),
+			DNSName:              azureBastion.PublicIP.DNSName,
+			IsIPv6:               false, // Public IP is IPv4 by default
+			ClusterName:          s.ClusterName(),
+			ExtendedLocationType: s.ExtendedLocation().Type,
+			ExtendedLocationName: s.ExtendedLocation().Name,
+			Location:             s.Location(),
+			FailureDomains:       s.FailureDomains(),
+			AdditionalTags:       s.AdditionalTags(),
+			IPTags:               azureBastion.PublicIP.IPTags,
 		}
 		publicIPSpecs = append(publicIPSpecs, azureBastionPublicIP)
 	}
@@ -721,6 +731,15 @@ func (s *ClusterScope) Namespace() string {
 // Location returns the cluster location.
 func (s *ClusterScope) Location() string {
 	return s.AzureCluster.Spec.Location
+}
+
+// ExtendedLocation returns the cluster extendedLocation.
+func (s *ClusterScope) ExtendedLocation() infrav1.ExtendedLocationSpec {
+	// extendedLocation := new(infrav1.ExtendedLocationSpec)
+	// if s.AzureCluster.Spec.ExtendedLocation != (infrav1.ExtendedLocationSpec{}) {
+	// 	extendedLocation = s.AzureCluster.Spec.ExtendedLocation.DeepCopy()
+	// }
+	return s.ExtendedLocation()
 }
 
 // AvailabilitySetEnabled informs machines that they should be part of an Availability Set.

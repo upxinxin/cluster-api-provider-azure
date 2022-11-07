@@ -306,11 +306,11 @@ create-management-cluster: $(KUSTOMIZE) $(ENVSUBST) $(KUBECTL) $(KIND) ## Create
 create-workload-cluster: $(ENVSUBST) $(KUBECTL) ## Create a workload cluster.
 	# Create workload Cluster.
 	@if [ -f "$(TEMPLATES_DIR)/$(CLUSTER_TEMPLATE)" ]; then \
-		$(ENVSUBST) < "$(TEMPLATES_DIR)/$(CLUSTER_TEMPLATE)" | $(KUBECTL) apply -f -; \
+		$(ENVSUBST) < "$(TEMPLATES_DIR)/$(CLUSTER_TEMPLATE)" | $(KUBECTL) apply -f - --validate=false; \
 	elif [ -f "$(CLUSTER_TEMPLATE)" ]; then \
-		$(ENVSUBST) < "$(CLUSTER_TEMPLATE)" | $(KUBECTL) apply -f -; \
+		$(ENVSUBST) < "$(CLUSTER_TEMPLATE)" | $(KUBECTL) apply -f - --validate=false; \
 	else \
-		curl --retry "$(CURL_RETRIES)" "$(CLUSTER_TEMPLATE)" | "$(ENVSUBST)" | $(KUBECTL) apply -f -; \
+		curl --retry "$(CURL_RETRIES)" "$(CLUSTER_TEMPLATE)" | "$(ENVSUBST)" | $(KUBECTL) apply -f - --validate=false; \
 	fi
 
 	# Wait for the kubeconfig to become available.

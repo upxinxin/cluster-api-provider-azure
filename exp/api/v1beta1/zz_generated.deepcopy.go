@@ -633,6 +633,7 @@ func (in *AzureManagedControlPlaneList) DeepCopyObject() runtime.Object {
 func (in *AzureManagedControlPlaneSpec) DeepCopyInto(out *AzureManagedControlPlaneSpec) {
 	*out = *in
 	in.VirtualNetwork.DeepCopyInto(&out.VirtualNetwork)
+	out.ExtendedLocation = in.ExtendedLocation
 	out.ControlPlaneEndpoint = in.ControlPlaneEndpoint
 	if in.AdditionalTags != nil {
 		in, out := &in.AdditionalTags, &out.AdditionalTags

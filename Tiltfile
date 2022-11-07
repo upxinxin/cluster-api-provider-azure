@@ -329,7 +329,7 @@ def deploy_worker_templates(template, substitutions):
     # programmatically define any remaining vars
     # "windows" can not be for cluster name because it sets the dns to trademarked name during reconciliation
     substitutions = {
-        "AZURE_LOCATION": "eastus",
+        "AZURE_LOCATION": "eastus2euap",
         "AZURE_VNET_NAME": "${CLUSTER_NAME}-vnet",
         "AZURE_RESOURCE_GROUP": "${CLUSTER_NAME}-rg",
         "CONTROL_PLANE_MACHINE_COUNT": "1",
@@ -337,6 +337,8 @@ def deploy_worker_templates(template, substitutions):
         "AZURE_CONTROL_PLANE_MACHINE_TYPE": "Standard_D2s_v3",
         "WORKER_MACHINE_COUNT": "2",
         "AZURE_NODE_MACHINE_TYPE": "Standard_D2s_v3",
+        "AZURE_EXTENDEDLOCATION_TYPE": "EdgeZone",
+        "AZURE_EXTENDEDLOCATION_NAME": "microsoftrrdclab3",
     }
 
     if flavor == "aks":

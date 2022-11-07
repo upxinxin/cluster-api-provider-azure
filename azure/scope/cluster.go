@@ -739,7 +739,7 @@ func (s *ClusterScope) ExtendedLocation() infrav1.ExtendedLocationSpec {
 	// if s.AzureCluster.Spec.ExtendedLocation != (infrav1.ExtendedLocationSpec{}) {
 	// 	extendedLocation = s.AzureCluster.Spec.ExtendedLocation.DeepCopy()
 	// }
-	return s.ExtendedLocation()
+	return s.AzureCluster.Spec.ExtendedLocation
 }
 
 // AvailabilitySetEnabled informs machines that they should be part of an Availability Set.

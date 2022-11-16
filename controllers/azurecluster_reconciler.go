@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/pkg/errors"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
@@ -144,10 +143,6 @@ func (s *azureClusterService) getService(name string) (azure.ServiceReconciler, 
 // setFailureDomainsForLocation sets the AzureCluster Status failure domains based on which Azure Availability Zones are available in the cluster location.
 // Note that this is not done in a webhook as it requires API calls to fetch the availability zones.
 func (s *azureClusterService) setFailureDomainsForLocation(ctx context.Context) error {
-	ctx, log, _ := tele.StartSpanWithLogger(ctx, "controllers.azureClusterService.Delete")
-
-	log.Info(fmt.Sprintf("qliang1: extendedlocation info: %v", s.scope.ExtendedLocation()))
-
 	if s.scope.ExtendedLocation() != nil && s.scope.ExtendedLocation().Name != "" {
 		return nil
 	}

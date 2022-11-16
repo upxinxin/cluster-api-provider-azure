@@ -21,7 +21,7 @@ settings = {
     "kind_cluster_name": "capz",
     "capi_version": "v1.2.4",
     "cert_manager_version": "v1.1.0",
-    "kubernetes_version": "v1.25.0",
+    "kubernetes_version": "v1.23.9",
     "aks_kubernetes_version": "v1.23.8",
 }
 

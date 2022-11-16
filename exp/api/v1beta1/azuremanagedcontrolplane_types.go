@@ -61,9 +61,6 @@ type AzureManagedControlPlaneSpec struct {
 	// Location is a string matching one of the canonical Azure region names. Examples: "westus2", "eastus".
 	Location string `json:"location"`
 
-	// +optional
-	ExtendedLocation *infrav1.ExtendedLocationSpec `json:"extendedLocation,omitempty"`
-
 	// ControlPlaneEndpoint represents the endpoint used to communicate with the control plane.
 	// +optional
 	ControlPlaneEndpoint clusterv1.APIEndpoint `json:"controlPlaneEndpoint,omitempty"`

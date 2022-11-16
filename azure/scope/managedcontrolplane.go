@@ -151,9 +151,9 @@ func (s *ManagedControlPlaneScope) Location() string {
 	return s.ControlPlane.Spec.Location
 }
 
-// ExtendedLocation returns the control plane's extendedLocation.
+// We have not implemented EdgeZone for AzureManagedControlPlance.
 func (s *ManagedControlPlaneScope) ExtendedLocation() *infrav1.ExtendedLocationSpec {
-	return s.ControlPlane.Spec.ExtendedLocation
+	return nil
 }
 
 // AvailabilitySetEnabled is always false for a managed control plane.

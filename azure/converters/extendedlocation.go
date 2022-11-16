@@ -23,7 +23,7 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 )
 
-//  ExtendedLocationToNetworkSDK converts infrav1.ExtendedLocationSpec to network.ExtendedLocation.
+// ExtendedLocationToNetworkSDK converts infrav1.ExtendedLocationSpec to network.ExtendedLocation.
 func ExtendedLocationToNetworkSDK(src *infrav1.ExtendedLocationSpec) *network.ExtendedLocation {
 	if src == nil {
 		return nil
@@ -35,7 +35,7 @@ func ExtendedLocationToNetworkSDK(src *infrav1.ExtendedLocationSpec) *network.Ex
 	}
 }
 
-//  ExtendedLocationToComputeSDK converts infrav1.ExtendedLocationSpec to compute.ExtendedLocation.
+// ExtendedLocationToComputeSDK converts infrav1.ExtendedLocationSpec to compute.ExtendedLocation.
 func ExtendedLocationToComputeSDK(src *infrav1.ExtendedLocationSpec) *compute.ExtendedLocation {
 	if src == nil {
 		return nil

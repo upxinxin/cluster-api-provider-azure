@@ -465,7 +465,7 @@ func (m *MachineScope) AvailabilitySetSpec() azure.ResourceSpecGetter {
 
 // AvailabilitySet returns the availability set for this machine if available.
 func (m *MachineScope) AvailabilitySet() (string, bool) {
-	if !m.AvailabilitySetEnabled() {
+	if !m.AvailabilitySetEnabled() || m.ExtendedLocation() != nil {
 		return "", false
 	}
 
@@ -488,9 +488,6 @@ func (m *MachineScope) AvailabilitySet() (string, bool) {
 
 // AvailabilitySetID returns the availability set for this machine, or "" if there is no availability set.
 func (m *MachineScope) AvailabilitySetID() string {
-	if m.ExtendedLocation() != nil {
-		return ""
-	}
 	var asID string
 	if asName, ok := m.AvailabilitySet(); ok {
 		asID = azure.AvailabilitySetID(m.SubscriptionID(), m.ResourceGroup(), asName)

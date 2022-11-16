@@ -25,6 +25,7 @@ type AzureClusterClassSpec struct {
 
 	Location string `json:"location"`
 
+	// ExtendedLocation is an optional set of ExtendedLocation properties to support capz on Azure public MEC
 	// +optional
 	ExtendedLocation *ExtendedLocationSpec `json:"extendedLocation,omitempty"`
 
@@ -56,8 +57,10 @@ type AzureClusterClassSpec struct {
 }
 
 type ExtendedLocationSpec struct {
+	// Name defines a name for extended location.
 	Name string `json:"name"`
 
+	// Type defines a type for extended location (eg. EdgeZone)
 	Type string `json:"type"`
 }
 

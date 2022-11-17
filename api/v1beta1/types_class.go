@@ -25,6 +25,10 @@ type AzureClusterClassSpec struct {
 
 	Location string `json:"location"`
 
+	// ExtendedLocation is an optional set of ExtendedLocation properties to support capz on Azure public MEC
+	// +optional
+	ExtendedLocation *ExtendedLocationSpec `json:"extendedLocation,omitempty"`
+
 	// AdditionalTags is an optional set of tags to add to Azure resources managed by the Azure provider, in addition to the
 	// ones added by default.
 	// +optional
@@ -50,6 +54,14 @@ type AzureClusterClassSpec struct {
 	// Note: All cloud provider config values can be customized by creating the secret beforehand. CloudProviderConfigOverrides is only used when the secret is managed by the Azure Provider.
 	// +optional
 	CloudProviderConfigOverrides *CloudProviderConfigOverrides `json:"cloudProviderConfigOverrides,omitempty"`
+}
+
+type ExtendedLocationSpec struct {
+	// Name defines a name for extended location.
+	Name string `json:"name"`
+
+	// Type defines a type for extended location (eg. EdgeZone)
+	Type string `json:"type"`
 }
 
 // NetworkClassSpec defines the NetworkSpec properties that may be shared across several Azure clusters.

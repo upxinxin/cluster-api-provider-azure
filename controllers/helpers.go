@@ -241,6 +241,20 @@ func userAssignedIdentityCloudProviderConfig(d azure.ClusterScoper, identityID s
 	return controlPlaneConfig, workerConfig
 }
 
+func GetExtendedLocationName(d azure.ClusterScoper) string {
+	if d.ExtendedLocation() == nil {
+		return ""
+	}
+	return d.ExtendedLocation().Name
+}
+
+func GetExtendedLocationType(d azure.ClusterScoper) string {
+	if d.ExtendedLocation() == nil {
+		return ""
+	}
+	return d.ExtendedLocation().Type
+}
+
 func newCloudProviderConfig(d azure.ClusterScoper) (controlPlaneConfig *CloudProviderConfig, workerConfig *CloudProviderConfig) {
 	subnet := getOneNodeSubnet(d)
 	return (&CloudProviderConfig{
@@ -253,6 +267,8 @@ func newCloudProviderConfig(d azure.ClusterScoper) (controlPlaneConfig *CloudPro
 			SecurityGroupName:            subnet.SecurityGroup.Name,
 			SecurityGroupResourceGroup:   d.Vnet().ResourceGroup,
 			Location:                     d.Location(),
+			ExtendedLocationType:         GetExtendedLocationType(d),
+			ExtendedLocationName:         GetExtendedLocationName(d),
 			VMType:                       "vmss",
 			VnetName:                     d.Vnet().Name,
 			VnetResourceGroup:            d.Vnet().ResourceGroup,
@@ -273,6 +289,8 @@ func newCloudProviderConfig(d azure.ClusterScoper) (controlPlaneConfig *CloudPro
 			SecurityGroupName:            subnet.SecurityGroup.Name,
 			SecurityGroupResourceGroup:   d.Vnet().ResourceGroup,
 			Location:                     d.Location(),
+			ExtendedLocationType:         GetExtendedLocationType(d),
+			ExtendedLocationName:         GetExtendedLocationName(d),
 			VMType:                       "vmss",
 			VnetName:                     d.Vnet().Name,
 			VnetResourceGroup:            d.Vnet().ResourceGroup,
@@ -306,6 +324,8 @@ type CloudProviderConfig struct {
 	SecurityGroupName            string `json:"securityGroupName"`
 	SecurityGroupResourceGroup   string `json:"securityGroupResourceGroup"`
 	Location                     string `json:"location"`
+	ExtendedLocationType         string `json:"extendedLocationType,omitempty"`
+	ExtendedLocationName         string `json:"extendedLocationName,omitempty"`
 	VMType                       string `json:"vmType"`
 	VnetName                     string `json:"vnetName"`
 	VnetResourceGroup            string `json:"vnetResourceGroup"`

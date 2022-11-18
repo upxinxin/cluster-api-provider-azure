@@ -1657,10 +1657,14 @@ spec:
                 - port
                 type: object
               extendedLocation:
+                description: ExtendedLocation is an optional set of ExtendedLocation
+                  properties to support capz on Azure public MEC
                 properties:
                   name:
+                    description: Name defines a name for extended location.
                     type: string
                   type:
+                    description: Type defines a type for extended location (eg. EdgeZone)
                     type: string
                 required:
                 - name

@@ -151,7 +151,7 @@ func (s *ManagedControlPlaneScope) Location() string {
 	return s.ControlPlane.Spec.Location
 }
 
-// We have not implemented EdgeZone for AzureManagedControlPlance.
+// ExtendedLocation has not been implemented for AzureManagedControlPlane.
 func (s *ManagedControlPlaneScope) ExtendedLocation() *infrav1.ExtendedLocationSpec {
 	return nil
 }

@@ -56,6 +56,7 @@ type AzureClusterClassSpec struct {
 	CloudProviderConfigOverrides *CloudProviderConfigOverrides `json:"cloudProviderConfigOverrides,omitempty"`
 }
 
+// ExtendedLocationSpec defines the ExtendedLocation properties to enable CAPZ for Azure public MEC.
 type ExtendedLocationSpec struct {
 	// Name defines a name for extended location.
 	Name string `json:"name"`

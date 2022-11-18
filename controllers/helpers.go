@@ -241,6 +241,7 @@ func userAssignedIdentityCloudProviderConfig(d azure.ClusterScoper, identityID s
 	return controlPlaneConfig, workerConfig
 }
 
+// GetExtendedLocationName returns the name for ExtendedLocation.
 func GetExtendedLocationName(d azure.ClusterScoper) string {
 	if d.ExtendedLocation() == nil {
 		return ""
@@ -248,6 +249,7 @@ func GetExtendedLocationName(d azure.ClusterScoper) string {
 	return d.ExtendedLocation().Name
 }
 
+// GetExtendedLocationType returns the type for ExtendedLocation.
 func GetExtendedLocationType(d azure.ClusterScoper) string {
 	if d.ExtendedLocation() == nil {
 		return ""

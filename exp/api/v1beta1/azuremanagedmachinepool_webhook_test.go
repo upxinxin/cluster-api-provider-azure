@@ -24,7 +24,9 @@ import (
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	utilfeature "k8s.io/component-base/featuregate/testing"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
+	"sigs.k8s.io/cluster-api-provider-azure/feature"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -568,8 +570,9 @@ func TestValidateBoolPtrImmutable(t *testing.T) {
 }
 
 func TestAzureManagedMachinePool_ValidateCreate(t *testing.T) {
-	g := NewWithT(t)
-
+	// NOTE: AzureManagedMachinePool is behind AKS feature gate flag; the web hook
+	// must prevent creating new objects in case the feature flag is disabled.
+	defer utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.AKS, true)()
 	tests := []struct {
 		name     string
 		ammp     *AzureManagedMachinePool
@@ -577,13 +580,8 @@ func TestAzureManagedMachinePool_ValidateCreate(t *testing.T) {
 		errorLen int
 	}{
 		{
-			name: "valid",
-			ammp: &AzureManagedMachinePool{
-				Spec: AzureManagedMachinePoolSpec{
-					MaxPods:    to.Int32Ptr(30),
-					OsDiskType: to.StringPtr(string(containerservice.OSDiskTypeEphemeral)),
-				},
-			},
+			name:    "valid",
+			ammp:    getKnownValidAzureManagedMachinePool(),
 			wantErr: false,
 		},
 		{
@@ -698,10 +696,91 @@ func TestAzureManagedMachinePool_ValidateCreate(t *testing.T) {
 			wantErr:  true,
 			errorLen: 1,
 		},
+		{
+			name: "pool with invalid public ip prefix",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP:   to.BoolPtr(true),
+					NodePublicIPPrefixID: to.StringPtr("not a valid resource ID"),
+				},
+			},
+			wantErr:  true,
+			errorLen: 1,
+		},
+		{
+			name: "pool with public ip prefix cannot omit node public IP",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP:   nil,
+					NodePublicIPPrefixID: to.StringPtr("subscriptions/11111111-2222-aaaa-bbbb-cccccccccccc/resourceGroups/public-ip-test/providers/Microsoft.Network/publicipprefixes/public-ip-prefix"),
+				},
+			},
+			wantErr:  true,
+			errorLen: 1,
+		},
+		{
+			name: "pool with public ip prefix cannot disable node public IP",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP:   to.BoolPtr(false),
+					NodePublicIPPrefixID: to.StringPtr("subscriptions/11111111-2222-aaaa-bbbb-cccccccccccc/resourceGroups/public-ip-test/providers/Microsoft.Network/publicipprefixes/public-ip-prefix"),
+				},
+			},
+			wantErr:  true,
+			errorLen: 1,
+		},
+		{
+			name: "pool with public ip prefix with node public IP enabled ok",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP:   to.BoolPtr(true),
+					NodePublicIPPrefixID: to.StringPtr("subscriptions/11111111-2222-aaaa-bbbb-cccccccccccc/resourceGroups/public-ip-test/providers/Microsoft.Network/publicipprefixes/public-ip-prefix"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "pool with public ip prefix with leading slash with node public IP enabled ok",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP:   to.BoolPtr(true),
+					NodePublicIPPrefixID: to.StringPtr("/subscriptions/11111111-2222-aaaa-bbbb-cccccccccccc/resourceGroups/public-ip-test/providers/Microsoft.Network/publicipprefixes/public-ip-prefix"),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "pool without public ip prefix with node public IP unset ok",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP: nil,
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "pool without public ip prefix with node public IP enabled ok",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP: to.BoolPtr(true),
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "pool without public ip prefix with node public IP disabled ok",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					EnableNodePublicIP: to.BoolPtr(false),
+				},
+			},
+			wantErr: false,
+		},
 	}
 	var client client.Client
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			g := NewWithT(t)
 			err := tc.ammp.ValidateCreate(client)
 			if tc.wantErr {
 				g.Expect(err).To(HaveOccurred())
@@ -710,5 +789,42 @@ func TestAzureManagedMachinePool_ValidateCreate(t *testing.T) {
 				g.Expect(err).NotTo(HaveOccurred())
 			}
 		})
+	}
+}
+
+func TestAzureManagedMachinePool_ValidateCreateFailure(t *testing.T) {
+	g := NewWithT(t)
+
+	tests := []struct {
+		name      string
+		ammp      *AzureManagedMachinePool
+		deferFunc func()
+	}{
+		{
+			name:      "feature gate explicitly disabled",
+			ammp:      getKnownValidAzureManagedMachinePool(),
+			deferFunc: utilfeature.SetFeatureGateDuringTest(t, feature.Gates, feature.AKS, false),
+		},
+		{
+			name:      "feature gate implicitly disabled",
+			ammp:      getKnownValidAzureManagedMachinePool(),
+			deferFunc: func() {},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			defer tc.deferFunc()
+			err := tc.ammp.ValidateCreate(nil)
+			g.Expect(err).To(HaveOccurred())
+		})
+	}
+}
+
+func getKnownValidAzureManagedMachinePool() *AzureManagedMachinePool {
+	return &AzureManagedMachinePool{
+		Spec: AzureManagedMachinePoolSpec{
+			MaxPods:    to.Int32Ptr(30),
+			OsDiskType: to.StringPtr(string(containerservice.OSDiskTypeEphemeral)),
+		},
 	}
 }

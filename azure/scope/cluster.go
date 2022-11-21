@@ -144,29 +144,31 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 		if s.ControlPlaneOutboundLB() != nil {
 			for _, ip := range s.ControlPlaneOutboundLB().FrontendIPs {
 				controlPlaneOutboundIPSpecs = append(controlPlaneOutboundIPSpecs, &publicips.PublicIPSpec{
-					Name:           ip.PublicIP.Name,
-					ResourceGroup:  s.ResourceGroup(),
-					ClusterName:    s.ClusterName(),
-					DNSName:        "",    // Set to default value
-					IsIPv6:         false, // Set to default value
-					Location:       s.Location(),
-					FailureDomains: s.FailureDomains(),
-					AdditionalTags: s.AdditionalTags(),
+					Name:             ip.PublicIP.Name,
+					ResourceGroup:    s.ResourceGroup(),
+					ClusterName:      s.ClusterName(),
+					DNSName:          "",    // Set to default value
+					IsIPv6:           false, // Set to default value
+					Location:         s.Location(),
+					ExtendedLocation: s.ExtendedLocation(),
+					FailureDomains:   s.FailureDomains(),
+					AdditionalTags:   s.AdditionalTags(),
 				})
 			}
 		}
 	} else {
 		controlPlaneOutboundIPSpecs = []azure.ResourceSpecGetter{
 			&publicips.PublicIPSpec{
-				Name:           s.APIServerPublicIP().Name,
-				ResourceGroup:  s.ResourceGroup(),
-				DNSName:        s.APIServerPublicIP().DNSName,
-				IsIPv6:         false, // Currently azure requires an IPv4 lb rule to enable IPv6
-				ClusterName:    s.ClusterName(),
-				Location:       s.Location(),
-				FailureDomains: s.FailureDomains(),
-				AdditionalTags: s.AdditionalTags(),
-				IPTags:         s.APIServerPublicIP().IPTags,
+				Name:             s.APIServerPublicIP().Name,
+				ResourceGroup:    s.ResourceGroup(),
+				DNSName:          s.APIServerPublicIP().DNSName,
+				IsIPv6:           false, // Currently azure requires an IPv4 lb rule to enable IPv6
+				ClusterName:      s.ClusterName(),
+				Location:         s.Location(),
+				ExtendedLocation: s.ExtendedLocation(),
+				FailureDomains:   s.FailureDomains(),
+				AdditionalTags:   s.AdditionalTags(),
+				IPTags:           s.APIServerPublicIP().IPTags,
 			},
 		}
 	}
@@ -176,14 +178,15 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	if s.NodeOutboundLB() != nil {
 		for _, ip := range s.NodeOutboundLB().FrontendIPs {
 			publicIPSpecs = append(publicIPSpecs, &publicips.PublicIPSpec{
-				Name:           ip.PublicIP.Name,
-				ResourceGroup:  s.ResourceGroup(),
-				ClusterName:    s.ClusterName(),
-				DNSName:        "",    // Set to default value
-				IsIPv6:         false, // Set to default value
-				Location:       s.Location(),
-				FailureDomains: s.FailureDomains(),
-				AdditionalTags: s.AdditionalTags(),
+				Name:             ip.PublicIP.Name,
+				ResourceGroup:    s.ResourceGroup(),
+				ClusterName:      s.ClusterName(),
+				DNSName:          "",    // Set to default value
+				IsIPv6:           false, // Set to default value
+				Location:         s.Location(),
+				ExtendedLocation: s.ExtendedLocation(),
+				FailureDomains:   s.FailureDomains(),
+				AdditionalTags:   s.AdditionalTags(),
 			})
 		}
 	}
@@ -193,15 +196,16 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	for _, subnet := range s.NodeSubnets() {
 		if subnet.IsNatGatewayEnabled() {
 			nodeNatGatewayIPSpecs = append(nodeNatGatewayIPSpecs, &publicips.PublicIPSpec{
-				Name:           subnet.NatGateway.NatGatewayIP.Name,
-				ResourceGroup:  s.ResourceGroup(),
-				DNSName:        subnet.NatGateway.NatGatewayIP.DNSName,
-				IsIPv6:         false, // Public IP is IPv4 by default
-				ClusterName:    s.ClusterName(),
-				Location:       s.Location(),
-				FailureDomains: s.FailureDomains(),
-				AdditionalTags: s.AdditionalTags(),
-				IPTags:         subnet.NatGateway.NatGatewayIP.IPTags,
+				Name:             subnet.NatGateway.NatGatewayIP.Name,
+				ResourceGroup:    s.ResourceGroup(),
+				DNSName:          subnet.NatGateway.NatGatewayIP.DNSName,
+				IsIPv6:           false, // Public IP is IPv4 by default
+				ClusterName:      s.ClusterName(),
+				Location:         s.Location(),
+				ExtendedLocation: s.ExtendedLocation(),
+				FailureDomains:   s.FailureDomains(),
+				AdditionalTags:   s.AdditionalTags(),
+				IPTags:           subnet.NatGateway.NatGatewayIP.IPTags,
 			})
 		}
 		publicIPSpecs = append(publicIPSpecs, nodeNatGatewayIPSpecs...)
@@ -210,15 +214,16 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	if azureBastion := s.AzureBastion(); azureBastion != nil {
 		// public IP for Azure Bastion.
 		azureBastionPublicIP := &publicips.PublicIPSpec{
-			Name:           azureBastion.PublicIP.Name,
-			ResourceGroup:  s.ResourceGroup(),
-			DNSName:        azureBastion.PublicIP.DNSName,
-			IsIPv6:         false, // Public IP is IPv4 by default
-			ClusterName:    s.ClusterName(),
-			Location:       s.Location(),
-			FailureDomains: s.FailureDomains(),
-			AdditionalTags: s.AdditionalTags(),
-			IPTags:         azureBastion.PublicIP.IPTags,
+			Name:             azureBastion.PublicIP.Name,
+			ResourceGroup:    s.ResourceGroup(),
+			DNSName:          azureBastion.PublicIP.DNSName,
+			IsIPv6:           false, // Public IP is IPv4 by default
+			ClusterName:      s.ClusterName(),
+			Location:         s.Location(),
+			ExtendedLocation: s.ExtendedLocation(),
+			FailureDomains:   s.FailureDomains(),
+			AdditionalTags:   s.AdditionalTags(),
+			IPTags:           azureBastion.PublicIP.IPTags,
 		}
 		publicIPSpecs = append(publicIPSpecs, azureBastionPublicIP)
 	}
@@ -236,6 +241,7 @@ func (s *ClusterScope) LBSpecs() []azure.ResourceSpecGetter {
 			SubscriptionID:       s.SubscriptionID(),
 			ClusterName:          s.ClusterName(),
 			Location:             s.Location(),
+			ExtendedLocation:     s.ExtendedLocation(),
 			VNetName:             s.Vnet().Name,
 			VNetResourceGroup:    s.Vnet().ResourceGroup,
 			SubnetName:           s.ControlPlaneSubnet().Name,
@@ -258,6 +264,7 @@ func (s *ClusterScope) LBSpecs() []azure.ResourceSpecGetter {
 			SubscriptionID:       s.SubscriptionID(),
 			ClusterName:          s.ClusterName(),
 			Location:             s.Location(),
+			ExtendedLocation:     s.ExtendedLocation(),
 			VNetName:             s.Vnet().Name,
 			VNetResourceGroup:    s.Vnet().ResourceGroup,
 			FrontendIPConfigs:    s.NodeOutboundLB().FrontendIPs,
@@ -278,6 +285,7 @@ func (s *ClusterScope) LBSpecs() []azure.ResourceSpecGetter {
 			SubscriptionID:       s.SubscriptionID(),
 			ClusterName:          s.ClusterName(),
 			Location:             s.Location(),
+			ExtendedLocation:     s.ExtendedLocation(),
 			VNetName:             s.Vnet().Name,
 			VNetResourceGroup:    s.Vnet().ResourceGroup,
 			FrontendIPConfigs:    s.ControlPlaneOutboundLB().FrontendIPs,
@@ -378,6 +386,7 @@ func (s *ClusterScope) SubnetSpecs() []azure.ResourceSpecGetter {
 			SecurityGroupName: subnet.SecurityGroup.Name,
 			Role:              subnet.Role,
 			NatGatewayName:    subnet.NatGateway.Name,
+			ServiceEndpoints:  subnet.ServiceEndpoints,
 		}
 		subnetSpecs = append(subnetSpecs, subnetSpec)
 	}
@@ -395,6 +404,7 @@ func (s *ClusterScope) SubnetSpecs() []azure.ResourceSpecGetter {
 			SecurityGroupName: azureBastionSubnet.SecurityGroup.Name,
 			RouteTableName:    azureBastionSubnet.RouteTable.Name,
 			Role:              azureBastionSubnet.Role,
+			ServiceEndpoints:  azureBastionSubnet.ServiceEndpoints,
 		})
 	}
 
@@ -441,12 +451,13 @@ func (s *ClusterScope) VnetPeeringSpecs() []azure.ResourceSpecGetter {
 // VNetSpec returns the virtual network spec.
 func (s *ClusterScope) VNetSpec() azure.ResourceSpecGetter {
 	return &virtualnetworks.VNetSpec{
-		ResourceGroup:  s.Vnet().ResourceGroup,
-		Name:           s.Vnet().Name,
-		CIDRs:          s.Vnet().CIDRBlocks,
-		Location:       s.Location(),
-		ClusterName:    s.ClusterName(),
-		AdditionalTags: s.AdditionalTags(),
+		ResourceGroup:    s.Vnet().ResourceGroup,
+		Name:             s.Vnet().Name,
+		CIDRs:            s.Vnet().CIDRBlocks,
+		ExtendedLocation: s.ExtendedLocation(),
+		Location:         s.Location(),
+		ClusterName:      s.ClusterName(),
+		AdditionalTags:   s.AdditionalTags(),
 	}
 }
 
@@ -729,6 +740,11 @@ func (s *ClusterScope) AvailabilitySetEnabled() bool {
 // CloudProviderConfigOverrides returns the cloud provider config overrides for the cluster.
 func (s *ClusterScope) CloudProviderConfigOverrides() *infrav1.CloudProviderConfigOverrides {
 	return s.AzureCluster.Spec.CloudProviderConfigOverrides
+}
+
+// ExtendedLocation returns the cluster extendedLocation.
+func (s *ClusterScope) ExtendedLocation() *infrav1.ExtendedLocationSpec {
+	return s.AzureCluster.Spec.ExtendedLocation
 }
 
 // GenerateFQDN generates a fully qualified domain name, based on a hash, cluster name and cluster location.

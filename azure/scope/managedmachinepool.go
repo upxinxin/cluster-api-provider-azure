@@ -165,18 +165,19 @@ func buildAgentPoolSpec(managedControlPlane *infrav1exp.AzureManagedControlPlane
 		OSType:        managedMachinePool.Spec.OSType,
 		VnetSubnetID: azure.SubnetID(
 			managedControlPlane.Spec.SubscriptionID,
-			managedControlPlane.Spec.ResourceGroupName,
+			managedControlPlane.Spec.VirtualNetwork.ResourceGroup,
 			managedControlPlane.Spec.VirtualNetwork.Name,
 			managedControlPlane.Spec.VirtualNetwork.Subnet.Name,
 		),
-		Mode:               managedMachinePool.Spec.Mode,
-		MaxPods:            managedMachinePool.Spec.MaxPods,
-		AvailabilityZones:  managedMachinePool.Spec.AvailabilityZones,
-		OsDiskType:         managedMachinePool.Spec.OsDiskType,
-		EnableUltraSSD:     managedMachinePool.Spec.EnableUltraSSD,
-		Headers:            maps.FilterByKeyPrefix(agentPoolAnnotations, azure.CustomHeaderPrefix),
-		EnableNodePublicIP: managedMachinePool.Spec.EnableNodePublicIP,
-		ScaleSetPriority:   managedMachinePool.Spec.ScaleSetPriority,
+		Mode:                 managedMachinePool.Spec.Mode,
+		MaxPods:              managedMachinePool.Spec.MaxPods,
+		AvailabilityZones:    managedMachinePool.Spec.AvailabilityZones,
+		OsDiskType:           managedMachinePool.Spec.OsDiskType,
+		EnableUltraSSD:       managedMachinePool.Spec.EnableUltraSSD,
+		Headers:              maps.FilterByKeyPrefix(agentPoolAnnotations, azure.CustomHeaderPrefix),
+		EnableNodePublicIP:   managedMachinePool.Spec.EnableNodePublicIP,
+		NodePublicIPPrefixID: managedMachinePool.Spec.NodePublicIPPrefixID,
+		ScaleSetPriority:     managedMachinePool.Spec.ScaleSetPriority,
 	}
 
 	if managedMachinePool.Spec.OSDiskSizeGB != nil {

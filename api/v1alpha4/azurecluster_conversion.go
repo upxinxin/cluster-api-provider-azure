@@ -41,6 +41,9 @@ func (src *AzureCluster) ConvertTo(dstRaw conversion.Hub) error {
 	// Restore list of virtual network peerings
 	dst.Spec.NetworkSpec.Vnet.Peerings = restored.Spec.NetworkSpec.Vnet.Peerings
 
+	// Restore ExtendedLocation properties
+	dst.Spec.ExtendedLocation = restored.Spec.ExtendedLocation
+
 	// Restore API Server LB IP tags.
 	for _, restoredFrontendIP := range restored.Spec.NetworkSpec.APIServerLB.FrontendIPs {
 		for i, dstFrontendIP := range dst.Spec.NetworkSpec.APIServerLB.FrontendIPs {
@@ -70,11 +73,12 @@ func (src *AzureCluster) ConvertTo(dstRaw conversion.Hub) error {
 		}
 	}
 
-	// Restore NAT Gateway IP tags.
+	// Restore NAT Gateway IP tags and ServiceEndpoints.
 	for _, restoredSubnet := range restored.Spec.NetworkSpec.Subnets {
 		for i, dstSubnet := range dst.Spec.NetworkSpec.Subnets {
 			if dstSubnet.Name == restoredSubnet.Name {
 				dst.Spec.NetworkSpec.Subnets[i].NatGateway.NatGatewayIP.IPTags = restoredSubnet.NatGateway.NatGatewayIP.IPTags
+				dst.Spec.NetworkSpec.Subnets[i].ServiceEndpoints = restoredSubnet.ServiceEndpoints
 			}
 		}
 	}
@@ -87,6 +91,7 @@ func (src *AzureCluster) ConvertTo(dstRaw conversion.Hub) error {
 		if restored.Spec.BastionSpec.AzureBastion.Subnet.NatGateway.NatGatewayIP.Name == dst.Spec.BastionSpec.AzureBastion.Subnet.NatGateway.NatGatewayIP.Name {
 			dst.Spec.BastionSpec.AzureBastion.Subnet.NatGateway.NatGatewayIP.IPTags = restored.Spec.BastionSpec.AzureBastion.Subnet.NatGateway.NatGatewayIP.IPTags
 		}
+		dst.Spec.BastionSpec.AzureBastion.Subnet.ServiceEndpoints = restored.Spec.BastionSpec.AzureBastion.Subnet.ServiceEndpoints
 	}
 
 	return nil
@@ -283,6 +288,7 @@ func Convert_v1alpha4_SubnetSpec_To_v1beta1_SubnetSpec(in *SubnetSpec, out *infr
 
 	// Convert SubnetClassSpec fields
 	out.Role = infrav1.SubnetRole(in.Role)
+	out.Name = in.Name
 	out.CIDRBlocks = in.CIDRBlocks
 
 	return nil
@@ -296,6 +302,7 @@ func Convert_v1beta1_SubnetSpec_To_v1alpha4_SubnetSpec(in *infrav1.SubnetSpec, o
 
 	// Convert SubnetClassSpec fields
 	out.Role = SubnetRole(in.Role)
+	out.Name = in.Name
 	out.CIDRBlocks = in.CIDRBlocks
 
 	return nil

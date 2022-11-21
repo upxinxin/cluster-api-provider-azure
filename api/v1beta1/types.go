@@ -113,15 +113,15 @@ type VnetSpec struct {
 
 // VnetPeeringSpec specifies an existing remote virtual network to peer with the AzureCluster's virtual network.
 type VnetPeeringSpec struct {
-	// ResourceGroup is the resource group name of the remote virtual network.
-	// +optional
-	ResourceGroup string `json:"resourceGroup,omitempty"`
-
 	VnetPeeringClassSpec `json:",inline"`
 }
 
 // VnetPeeringClassSpec specifies a virtual network peering class.
 type VnetPeeringClassSpec struct {
+	// ResourceGroup is the resource group name of the remote virtual network.
+	// +optional
+	ResourceGroup string `json:"resourceGroup,omitempty"`
+
 	// RemoteVnetName defines name of the remote virtual network.
 	RemoteVnetName string `json:"remoteVnetName"`
 }
@@ -135,7 +135,14 @@ func (v *VnetSpec) IsManaged(clusterName string) bool {
 }
 
 // Subnets is a slice of Subnet.
+// +listType=map
+// +listMapKey=name
 type Subnets []SubnetSpec
+
+// ServiceEndpoints is a slice of string.
+// +listType=map
+// +listMapKey=service
+type ServiceEndpoints []ServiceEndpointSpec
 
 // SecurityGroup defines an Azure security group.
 type SecurityGroup struct {
@@ -230,6 +237,8 @@ type SecurityRule struct {
 }
 
 // SecurityRules is a slice of Azure security rules for security groups.
+// +listType=map
+// +listMapKey=name
 type SecurityRules []SecurityRule
 
 // LoadBalancerSpec defines an Azure load balancer.
@@ -601,9 +610,6 @@ type SubnetSpec struct {
 	// +optional
 	ID string `json:"id,omitempty"`
 
-	// Name defines a name for the subnet resource.
-	Name string `json:"name"`
-
 	// SecurityGroup defines the NSG (network security group) that should be attached to this subnet.
 	// +optional
 	SecurityGroup SecurityGroup `json:"securityGroup,omitempty"`
@@ -617,6 +623,13 @@ type SubnetSpec struct {
 	NatGateway NatGateway `json:"natGateway,omitempty"`
 
 	SubnetClassSpec `json:",inline"`
+}
+
+// ServiceEndpointSpec configures an Azure Service Endpoint.
+type ServiceEndpointSpec struct {
+	Service string `json:"service"`
+
+	Locations []string `json:"locations"`
 }
 
 // GetControlPlaneSubnet returns the cluster control plane subnet.

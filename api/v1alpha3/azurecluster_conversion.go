@@ -89,6 +89,7 @@ func (src *AzureCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 	// Here we manually restore outbound security rules. Since v1alpha3 only supports ingress ("Inbound") rules, all v1alpha4/v1beta1 outbound rules are dropped when an AzureCluster
 	// is converted to v1alpha3. We loop through all security group rules. For all previously existing outbound rules we restore the full rule.
+	// Also restores ServiceEndpoints
 	for _, restoredSubnet := range restored.Spec.NetworkSpec.Subnets {
 		for i, dstSubnet := range dst.Spec.NetworkSpec.Subnets {
 			if dstSubnet.Name != restoredSubnet.Name {
@@ -104,6 +105,8 @@ func (src *AzureCluster) ConvertTo(dstRaw conversion.Hub) error {
 			dst.Spec.NetworkSpec.Subnets[i].SecurityGroup.SecurityRules = append(dst.Spec.NetworkSpec.Subnets[i].SecurityGroup.SecurityRules, restoredOutboundRules...)
 			dst.Spec.NetworkSpec.Subnets[i].NatGateway = restoredSubnet.NatGateway
 
+			dst.Spec.NetworkSpec.Subnets[i].ServiceEndpoints = restoredSubnet.ServiceEndpoints
+
 			break
 		}
 	}
@@ -112,6 +115,9 @@ func (src *AzureCluster) ConvertTo(dstRaw conversion.Hub) error {
 
 	// Restore list of virtual network peerings
 	dst.Spec.NetworkSpec.Vnet.Peerings = restored.Spec.NetworkSpec.Vnet.Peerings
+
+	// Restore ExtendedLocation properties
+	dst.Spec.ExtendedLocation = restored.Spec.ExtendedLocation
 
 	return nil
 }
@@ -241,6 +247,7 @@ func Convert_v1alpha3_SubnetSpec_To_v1beta1_SubnetSpec(in *SubnetSpec, out *infr
 	}
 
 	// Convert SubnetClassSpec fields
+	out.Name = in.Name
 	out.Role = infrav1.SubnetRole(in.Role)
 	out.CIDRBlocks = in.CIDRBlocks
 
@@ -254,6 +261,7 @@ func Convert_v1beta1_SubnetSpec_To_v1alpha3_SubnetSpec(in *infrav1.SubnetSpec, o
 	}
 
 	// Convert SubnetClassSpec fields
+	out.Name = in.Name
 	out.Role = SubnetRole(in.Role)
 	out.CIDRBlocks = in.CIDRBlocks
 

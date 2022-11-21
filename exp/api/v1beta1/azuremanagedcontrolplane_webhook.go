@@ -30,6 +30,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
+	"sigs.k8s.io/cluster-api-provider-azure/feature"
 	clusterv1 "sigs.k8s.io/cluster-api/api/v1beta1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -80,6 +81,14 @@ func (m *AzureManagedControlPlane) Default(_ client.Client) {
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (m *AzureManagedControlPlane) ValidateCreate(client client.Client) error {
+	// NOTE: AzureManagedControlPlane is behind AKS feature gate flag; the web hook
+	// must prevent creating new objects in case the feature flag is disabled.
+	if !feature.Gates.Enabled(feature.AKS) {
+		return field.Forbidden(
+			field.NewPath("spec"),
+			"can be set only if the AKS feature flag is enabled",
+		)
+	}
 	return m.Validate(client)
 }
 
@@ -238,6 +247,10 @@ func (m *AzureManagedControlPlane) ValidateUpdate(oldRaw runtime.Object, client 
 						"length of AADProfile.AdminGroupObjectIDs cannot be zero"))
 			}
 		}
+	}
+
+	if errs := m.validateVirtualNetworkUpdate(old); len(errs) > 0 {
+		allErrs = append(allErrs, errs...)
 	}
 
 	if errs := m.validateAPIServerAccessProfileUpdate(old); len(errs) > 0 {
@@ -468,6 +481,55 @@ func (m *AzureManagedControlPlane) validateAPIServerAccessProfileUpdate(old *Azu
 		)
 	}
 
+	return allErrs
+}
+
+// validateVirtualNetworkUpdate validates update to APIServerAccessProfile.
+func (m *AzureManagedControlPlane) validateVirtualNetworkUpdate(old *AzureManagedControlPlane) field.ErrorList {
+	var allErrs field.ErrorList
+	if old.Spec.VirtualNetwork.Name != m.Spec.VirtualNetwork.Name {
+		allErrs = append(allErrs,
+			field.Invalid(
+				field.NewPath("Spec", "VirtualNetwork.Name"),
+				m.Spec.VirtualNetwork.Name,
+				"Virtual Network Name is immutable"))
+	}
+
+	if old.Spec.VirtualNetwork.CIDRBlock != m.Spec.VirtualNetwork.CIDRBlock {
+		allErrs = append(allErrs,
+			field.Invalid(
+				field.NewPath("Spec", "VirtualNetwork.CIDRBlock"),
+				m.Spec.VirtualNetwork.CIDRBlock,
+				"Virtual Network CIDRBlock is immutable"))
+	}
+
+	if old.Spec.VirtualNetwork.Subnet.Name != m.Spec.VirtualNetwork.Subnet.Name {
+		allErrs = append(allErrs,
+			field.Invalid(
+				field.NewPath("Spec", "VirtualNetwork.Subnet.Name"),
+				m.Spec.VirtualNetwork.Subnet.Name,
+				"Subnet Name is immutable"))
+	}
+
+	// NOTE: This only works because we force the user to set the CIDRBlock for both the
+	// managed and unmanaged Vnets. If we ever update the subnet cidr based on what's
+	// actually set in the subnet, and it is different from what's in the Spec, for
+	// unmanaged Vnets like we do with the AzureCluster this logic will break.
+	if old.Spec.VirtualNetwork.Subnet.CIDRBlock != m.Spec.VirtualNetwork.Subnet.CIDRBlock {
+		allErrs = append(allErrs,
+			field.Invalid(
+				field.NewPath("Spec", "VirtualNetwork.Subnet.CIDRBlock"),
+				m.Spec.VirtualNetwork.Subnet.CIDRBlock,
+				"Subnet CIDRBlock is immutable"))
+	}
+
+	if old.Spec.VirtualNetwork.ResourceGroup != m.Spec.VirtualNetwork.ResourceGroup {
+		allErrs = append(allErrs,
+			field.Invalid(
+				field.NewPath("Spec", "VirtualNetwork.ResourceGroup"),
+				m.Spec.VirtualNetwork.ResourceGroup,
+				"Virtual Network Resource Group is immutable"))
+	}
 	return allErrs
 }
 

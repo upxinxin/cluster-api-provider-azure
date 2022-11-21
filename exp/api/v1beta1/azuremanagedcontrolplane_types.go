@@ -210,12 +210,19 @@ type ManagedControlPlaneVirtualNetwork struct {
 	CIDRBlock string `json:"cidrBlock"`
 	// +optional
 	Subnet ManagedControlPlaneSubnet `json:"subnet,omitempty"`
+	// ResourceGroup is the name of the Azure resource group for the VNet and Subnet.
+	// +optional
+	ResourceGroup string `json:"resourceGroup,omitempty"`
 }
 
 // ManagedControlPlaneSubnet describes a subnet for an AKS cluster.
 type ManagedControlPlaneSubnet struct {
 	Name      string `json:"name"`
 	CIDRBlock string `json:"cidrBlock"`
+
+	// ServiceEndpoints is a slice of Virtual Network service endpoints to enable for the subnets.
+	// +optional
+	ServiceEndpoints infrav1.ServiceEndpoints `json:"serviceEndpoints,omitempty"`
 }
 
 // AzureManagedControlPlaneStatus defines the observed state of AzureManagedControlPlane.

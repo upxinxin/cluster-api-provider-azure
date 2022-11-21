@@ -51,6 +51,23 @@ func newAzureMachineService(machineScope *scope.MachineScope) (*azureMachineServ
 		return nil, errors.Wrap(err, "failed creating a NewCache")
 	}
 
+	// If ExtendedLocation exists, remove Availability set service.
+	if machineScope.ExtendedLocation() != nil {
+		return &azureMachineService{
+			scope: machineScope,
+			services: []azure.ServiceReconciler{
+				publicips.New(machineScope),
+				inboundnatrules.New(machineScope),
+				networkinterfaces.New(machineScope, cache),
+				disks.New(machineScope),
+				virtualmachines.New(machineScope),
+				roleassignments.New(machineScope),
+				vmextensions.New(machineScope),
+				tags.New(machineScope),
+			},
+			skuCache: cache,
+		}, nil
+	}
 	return &azureMachineService{
 		scope: machineScope,
 		services: []azure.ServiceReconciler{

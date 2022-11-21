@@ -338,6 +338,7 @@ create-aks-cluster: $(KUSTOMIZE) $(ENVSUBST) $(KUBECTL) ## Create a aks cluster.
 create-cluster: ## Create a workload development Kubernetes cluster on Azure in a kind management cluster.
 	EXP_CLUSTER_RESOURCE_SET=true \
 	EXP_MACHINE_POOL=true \
+	EXP_EDGEZONE=true \
 	$(MAKE) create-management-cluster \
 	create-workload-cluster
 
@@ -706,7 +707,7 @@ kind-create: $(KUBECTL) ## Create capz kind cluster if needed.
 
 .PHONY: tilt-up
 tilt-up: install-tools kind-create ## Start tilt and build kind cluster if needed.
-	EXP_CLUSTER_RESOURCE_SET=true EXP_MACHINE_POOL=true EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true tilt up
+	EXP_CLUSTER_RESOURCE_SET=true EXP_MACHINE_POOL=true EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION=true EXP_EDGEZONE=true tilt up
 
 .PHONY: delete-cluster
 delete-cluster: delete-workload-cluster  ## Deletes the example kind cluster "capz".

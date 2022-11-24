@@ -275,6 +275,34 @@ func (mr *MockLBScopeMockRecorder) ExtendedLocation() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExtendedLocation", reflect.TypeOf((*MockLBScope)(nil).ExtendedLocation))
 }
 
+// ExtendedLocationName mocks base method.
+func (m *MockLBScope) ExtendedLocationName() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExtendedLocationName")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ExtendedLocationName indicates an expected call of ExtendedLocationName.
+func (mr *MockLBScopeMockRecorder) ExtendedLocationName() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExtendedLocationName", reflect.TypeOf((*MockLBScope)(nil).ExtendedLocationName))
+}
+
+// ExtendedLocationType mocks base method.
+func (m *MockLBScope) ExtendedLocationType() string {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ExtendedLocationType")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ExtendedLocationType indicates an expected call of ExtendedLocationType.
+func (mr *MockLBScopeMockRecorder) ExtendedLocationType() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExtendedLocationType", reflect.TypeOf((*MockLBScope)(nil).ExtendedLocationType))
+}
+
 // FailureDomains mocks base method.
 func (m *MockLBScope) FailureDomains() []string {
 	m.ctrl.T.Helper()

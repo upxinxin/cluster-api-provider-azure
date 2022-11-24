@@ -156,6 +156,16 @@ func (s *ManagedControlPlaneScope) ExtendedLocation() *infrav1.ExtendedLocationS
 	return nil
 }
 
+// ExtendedLocationName has not been implemented for AzureManagedControlPlane.
+func (s *ManagedControlPlaneScope) ExtendedLocationName() string {
+	return ""
+}
+
+// ExtendedLocationType has not been implemented for AzureManagedControlPlane.
+func (s *ManagedControlPlaneScope) ExtendedLocationType() string {
+	return ""
+}
+
 // AvailabilitySetEnabled is always false for a managed control plane.
 func (s *ManagedControlPlaneScope) AvailabilitySetEnabled() bool {
 	return false // not applicable for a managed control plane

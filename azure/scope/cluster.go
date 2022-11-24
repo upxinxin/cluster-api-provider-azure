@@ -196,16 +196,15 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	for _, subnet := range s.NodeSubnets() {
 		if subnet.IsNatGatewayEnabled() {
 			nodeNatGatewayIPSpecs = append(nodeNatGatewayIPSpecs, &publicips.PublicIPSpec{
-				Name:             subnet.NatGateway.NatGatewayIP.Name,
-				ResourceGroup:    s.ResourceGroup(),
-				DNSName:          subnet.NatGateway.NatGatewayIP.DNSName,
-				IsIPv6:           false, // Public IP is IPv4 by default
-				ClusterName:      s.ClusterName(),
-				Location:         s.Location(),
-				ExtendedLocation: s.ExtendedLocation(),
-				FailureDomains:   s.FailureDomains(),
-				AdditionalTags:   s.AdditionalTags(),
-				IPTags:           subnet.NatGateway.NatGatewayIP.IPTags,
+				Name:           subnet.NatGateway.NatGatewayIP.Name,
+				ResourceGroup:  s.ResourceGroup(),
+				DNSName:        subnet.NatGateway.NatGatewayIP.DNSName,
+				IsIPv6:         false, // Public IP is IPv4 by default
+				ClusterName:    s.ClusterName(),
+				Location:       s.Location(),
+				FailureDomains: s.FailureDomains(),
+				AdditionalTags: s.AdditionalTags(),
+				IPTags:         subnet.NatGateway.NatGatewayIP.IPTags,
 			})
 		}
 		publicIPSpecs = append(publicIPSpecs, nodeNatGatewayIPSpecs...)
@@ -214,16 +213,15 @@ func (s *ClusterScope) PublicIPSpecs() []azure.ResourceSpecGetter {
 	if azureBastion := s.AzureBastion(); azureBastion != nil {
 		// public IP for Azure Bastion.
 		azureBastionPublicIP := &publicips.PublicIPSpec{
-			Name:             azureBastion.PublicIP.Name,
-			ResourceGroup:    s.ResourceGroup(),
-			DNSName:          azureBastion.PublicIP.DNSName,
-			IsIPv6:           false, // Public IP is IPv4 by default
-			ClusterName:      s.ClusterName(),
-			Location:         s.Location(),
-			ExtendedLocation: s.ExtendedLocation(),
-			FailureDomains:   s.FailureDomains(),
-			AdditionalTags:   s.AdditionalTags(),
-			IPTags:           azureBastion.PublicIP.IPTags,
+			Name:           azureBastion.PublicIP.Name,
+			ResourceGroup:  s.ResourceGroup(),
+			DNSName:        azureBastion.PublicIP.DNSName,
+			IsIPv6:         false, // Public IP is IPv4 by default
+			ClusterName:    s.ClusterName(),
+			Location:       s.Location(),
+			FailureDomains: s.FailureDomains(),
+			AdditionalTags: s.AdditionalTags(),
+			IPTags:         azureBastion.PublicIP.IPTags,
 		}
 		publicIPSpecs = append(publicIPSpecs, azureBastionPublicIP)
 	}
@@ -740,6 +738,22 @@ func (s *ClusterScope) AvailabilitySetEnabled() bool {
 // CloudProviderConfigOverrides returns the cloud provider config overrides for the cluster.
 func (s *ClusterScope) CloudProviderConfigOverrides() *infrav1.CloudProviderConfigOverrides {
 	return s.AzureCluster.Spec.CloudProviderConfigOverrides
+}
+
+// ExtendedLocationName returns ExtendedLocation name for the cluster.
+func (s *ClusterScope) ExtendedLocationName() string {
+	if s.ExtendedLocation() == nil {
+		return ""
+	}
+	return s.ExtendedLocation().Name
+}
+
+// ExtendedLocationType returns ExtendedLocation type for the cluster.
+func (s *ClusterScope) ExtendedLocationType() string {
+	if s.ExtendedLocation() == nil {
+		return ""
+	}
+	return s.ExtendedLocation().Type
 }
 
 // ExtendedLocation returns the cluster extendedLocation.

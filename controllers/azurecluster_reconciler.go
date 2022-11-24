@@ -143,7 +143,7 @@ func (s *azureClusterService) getService(name string) (azure.ServiceReconciler, 
 // setFailureDomainsForLocation sets the AzureCluster Status failure domains based on which Azure Availability Zones are available in the cluster location.
 // Note that this is not done in a webhook as it requires API calls to fetch the availability zones.
 func (s *azureClusterService) setFailureDomainsForLocation(ctx context.Context) error {
-	if s.scope.ExtendedLocation() != nil && s.scope.ExtendedLocation().Name != "" {
+	if s.scope.ExtendedLocation() != nil {
 		return nil
 	}
 

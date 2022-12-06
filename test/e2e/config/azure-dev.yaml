@@ -143,6 +143,8 @@ providers:
         targetName: "clusterclass-ci-default.yaml"
       - sourcePath: "${PWD}/templates/test/ci/cluster-template-prow-topology.yaml"
         targetName: "cluster-template-topology.yaml"
+      - sourcePath: "${PWD}/templates/test/ci/cluster-template-prow-edgezone.yaml"
+        targetName: "cluster-template-edgezone.yaml"
       replacements:
       - old: "--v=0"
         new: "--v=2"
@@ -160,6 +162,8 @@ variables:
   EXP_MACHINE_POOL: "true"
   EXP_CLUSTER_RESOURCE_SET: "true"
   CLUSTER_TOPOLOGY: "true"
+  AZURE_EXTENDEDLOCATION_TYPE: "${AZURE_EXTENDEDLOCATION_TYPE:-EdgeZone}"   
+  AZURE_EXTENDEDLOCATION_NAME: "${AZURE_EXTENDEDLOCATION_NAME:-microsoftrrdclab3}"    
   CONFORMANCE_WORKER_MACHINE_COUNT: "2"
   CONFORMANCE_CONTROL_PLANE_MACHINE_COUNT: "${CONFORMANCE_CONTROL_PLANE_MACHINE_COUNT:-1}"
   CONFORMANCE_IMAGE: "${CONFORMANCE_IMAGE:-}"

@@ -1,21 +1,17 @@
-# Public MEC enabled clusters
+# Deploy cluster on Public MEC
 
 - **Feature status:** Experimental
 - **Feature gate:** EdgeZone=true
 
 ## Overview
 
-Cluster API Provider Azure (CAPZ) experimentally supports public MEC enabled Kubernetes clusters on Microsoft Azure.
-Before you begin, be aware that:
+Cluster API Provider Azure (CAPZ) experimentally supports deploying clusters on [Azure Public MEC](https://azure.microsoft.com/en-us/solutions/public-multi-access-edge-compute-mec). Before you begin, you may need to prepare an azure subscription which has access to Public MEC.
 
-- [Azure Public MEC](https://azure.microsoft.com/en-us/solutions/public-multi-access-edge-compute-mec) introduction
-- Public MEC is now only open to limited users in specific subscription
+To deploy a cluster on Public MEC, provide extendedlocation info through environment variable, and use the [Edgezone flavor](https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/cluster-template-edgezone.yaml).
 
-To deploy a cluster on public MEC, use the [edgezone flavor](https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/cluster-template-edgezone.yaml).
+## Example: Deploy cluster on Public MEC by `clusterctl`
 
-## Example: Deploy a public MEC enabled cluster by `clusterctl`
-
-A clusterctl flavor exists to deploy an public MEC enabled cluster with CAPZ. This flavor requires the following environment variables to be set before executing clusterctl.
+A clusterctl flavor exists to deploy cluster on Public MEC. This flavor requires the following environment variables to be set before executing clusterctl.
 
 ```bash
 # Kubernetes values

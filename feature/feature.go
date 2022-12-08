@@ -34,6 +34,11 @@ const (
 	// owner: @alexeldeib
 	// alpha: v0.4
 	AKS featuregate.Feature = "AKS"
+
+	// EdgeZone is the feature gate for creating clusters on public MEC.
+	// owner: @upxinxin
+	// alpha: v0.1
+	EdgeZone featuregate.Feature = "EdgeZone"
 )
 
 func init() {
@@ -44,5 +49,6 @@ func init() {
 // To add a new feature, define a key for it above and add it here.
 var defaultCAPZFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	// Every feature should be initiated here:
-	AKS: {Default: false, PreRelease: featuregate.Alpha},
+	AKS:      {Default: false, PreRelease: featuregate.Alpha},
+	EdgeZone: {Default: false, PreRelease: featuregate.Alpha},
 }

@@ -28,6 +28,7 @@ import (
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/azure/scope"
+	"sigs.k8s.io/cluster-api-provider-azure/feature"
 	"sigs.k8s.io/cluster-api-provider-azure/pkg/coalescing"
 	"sigs.k8s.io/cluster-api-provider-azure/util/reconciler"
 	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
@@ -177,6 +178,12 @@ func (acr *AzureClusterReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if err != nil {
 		err = errors.Wrap(err, "failed to create scope")
 		acr.Recorder.Eventf(azureCluster, corev1.EventTypeWarning, "CreateClusterScopeFailed", err.Error())
+		return reconcile.Result{}, err
+	}
+
+	// If ExtendedLocation filed is not empty and EdegZone feature gate is not enabled, stop and return exception.
+	if clusterScope.ExtendedLocation() != nil && !feature.Gates.Enabled(feature.EdgeZone) {
+		err = errors.Errorf("EdgeZone feature gate is false and not support creating cluster on public MEC. Please set EXP_EDGEZONE true to enable public MEC")
 		return reconcile.Result{}, err
 	}
 

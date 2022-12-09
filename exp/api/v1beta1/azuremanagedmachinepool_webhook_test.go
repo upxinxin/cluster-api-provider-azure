@@ -23,7 +23,6 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 	utilfeature "k8s.io/component-base/featuregate/testing"
 	"sigs.k8s.io/cluster-api-provider-azure/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/feature"
@@ -483,6 +482,24 @@ func TestAzureManagedMachinePoolUpdatingWebhook(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Can't update kubeletconfig",
+			new: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						CPUCfsQuota: to.BoolPtr(true),
+					},
+				},
+			},
+			old: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						CPUCfsQuota: to.BoolPtr(false),
+					},
+				},
+			},
+			wantErr: true,
+		},
 	}
 	var client client.Client
 	for _, tc := range tests {
@@ -491,76 +508,6 @@ func TestAzureManagedMachinePoolUpdatingWebhook(t *testing.T) {
 			t.Parallel()
 			err := tc.new.ValidateUpdate(tc.old, client)
 			if tc.wantErr {
-				g.Expect(err).To(HaveOccurred())
-			} else {
-				g.Expect(err).NotTo(HaveOccurred())
-			}
-		})
-	}
-}
-
-func TestValidateBoolPtrImmutable(t *testing.T) {
-	tests := []struct {
-		name    string
-		oldVal  *bool
-		newVal  *bool
-		wantErr bool
-	}{
-		{
-			name:    "true to true ok",
-			oldVal:  to.BoolPtr(true),
-			newVal:  to.BoolPtr(true),
-			wantErr: false,
-		},
-		{
-			name:    "false to false ok",
-			oldVal:  to.BoolPtr(false),
-			newVal:  to.BoolPtr(false),
-			wantErr: false,
-		},
-		{
-			name:    "true to false bad",
-			oldVal:  to.BoolPtr(true),
-			newVal:  to.BoolPtr(false),
-			wantErr: true,
-		},
-		{
-			name:    "false to true bad",
-			oldVal:  to.BoolPtr(false),
-			newVal:  to.BoolPtr(true),
-			wantErr: true,
-		},
-		{
-			name:    "false to nil bad",
-			oldVal:  to.BoolPtr(false),
-			newVal:  nil,
-			wantErr: true,
-		},
-		{
-			name:    "true to nil bad",
-			oldVal:  to.BoolPtr(true),
-			newVal:  nil,
-			wantErr: true,
-		},
-		{
-			name:    "nil to false bad",
-			oldVal:  nil,
-			newVal:  to.BoolPtr(false),
-			wantErr: true,
-		},
-		{
-			name:    "nil to true bad",
-			oldVal:  nil,
-			newVal:  to.BoolPtr(true),
-			wantErr: true,
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			g := NewWithT(t)
-			err := validateBoolPtrImmutable(field.NewPath("test"), test.oldVal, test.newVal)
-			if test.wantErr {
 				g.Expect(err).To(HaveOccurred())
 			} else {
 				g.Expect(err).NotTo(HaveOccurred())
@@ -775,6 +722,107 @@ func TestAzureManagedMachinePool_ValidateCreate(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "KubeletConfig CPUCfsQuotaPeriod needs 'ms' suffix",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						CPUCfsQuotaPeriod: to.StringPtr("100"),
+					},
+				},
+			},
+			wantErr:  true,
+			errorLen: 1,
+		},
+		{
+			name: "KubeletConfig CPUCfsQuotaPeriod has valid 'ms' suffix",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						CPUCfsQuotaPeriod: to.StringPtr("100ms"),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "KubeletConfig ImageGcLowThreshold can't be more than ImageGcHighThreshold",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						ImageGcLowThreshold:  to.Int32Ptr(100),
+						ImageGcHighThreshold: to.Int32Ptr(99),
+					},
+				},
+			},
+			wantErr:  true,
+			errorLen: 1,
+		},
+		{
+			name: "KubeletConfig ImageGcLowThreshold is lower than ImageGcHighThreshold",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						ImageGcLowThreshold:  to.Int32Ptr(99),
+						ImageGcHighThreshold: to.Int32Ptr(100),
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid KubeletConfig AllowedUnsafeSysctls values",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						AllowedUnsafeSysctls: []string{
+							"kernel.shm*",
+							"kernel.msg*",
+							"kernel.sem",
+							"fs.mqueue.*",
+							"net.*",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "more valid KubeletConfig AllowedUnsafeSysctls values",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						AllowedUnsafeSysctls: []string{
+							"kernel.shm.something",
+							"kernel.msg.foo.bar",
+							"kernel.sem",
+							"fs.mqueue.baz",
+							"net.my.configuration.path",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "an invalid KubeletConfig AllowedUnsafeSysctls value in a set",
+			ammp: &AzureManagedMachinePool{
+				Spec: AzureManagedMachinePoolSpec{
+					KubeletConfig: &KubeletConfig{
+						AllowedUnsafeSysctls: []string{
+							"kernel.shm.something",
+							"kernel.msg.foo.bar",
+							"kernel.sem",
+							"fs.mqueue.baz",
+							"net.my.configuration.path",
+							"kernel.not.allowed",
+						},
+					},
+				},
+			},
+			wantErr:  true,
+			errorLen: 1,
 		},
 	}
 	var client client.Client

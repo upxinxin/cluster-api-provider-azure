@@ -19,8 +19,9 @@ set -o nounset
 set -o pipefail
 
 REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+# shellcheck source=hack/common-vars.sh
+source "${REPO_ROOT}/hack/common-vars.sh"
 
-YQ="${REPO_ROOT}/hack/tools/bin/yq"
 make --directory="${REPO_ROOT}" "${YQ##*/}" &>/dev/null
 
 KEYS=()

@@ -77,7 +77,10 @@ setup() {
     fi
     echo "Using cluster template: ${CLUSTER_TEMPLATE}"
 
-    export CLUSTER_NAME="${CLUSTER_NAME:-capz-$(head /dev/urandom | LC_ALL=C tr -dc a-z0-9 | head -c 6 ; echo '')}"
+    export CLUSTER_NAME="${CLUSTER_NAME:-capz-$(
+        head /dev/urandom | LC_ALL=C tr -dc a-z0-9 | head -c 6
+        echo ''
+    )}"
     export AZURE_RESOURCE_GROUP="${CLUSTER_NAME}"
     export AZURE_LOCATION="${AZURE_LOCATION:-$(capz::util::get_random_region)}"
     echo "Using AZURE_LOCATION: ${AZURE_LOCATION}"
@@ -128,6 +131,74 @@ create_cluster() {
     "${REPO_ROOT}/hack/create-dev-cluster.sh"
 }
 
+install_addons() {
+    # Get CCM cluster CIDRs from Cluster object if not set
+    if [[ -z "${CCM_CLUSTER_CIDR:-}" ]]; then
+        CCM_CLUSTER_CIDR=$(${KUBECTL} get cluster "${CLUSTER_NAME}" -o=jsonpath='{.spec.clusterNetwork.pods.cidrBlocks[0]}')
+        if CIDR1=$(${KUBECTL} get cluster "${CLUSTER_NAME}" -o=jsonpath='{.spec.clusterNetwork.pods.cidrBlocks[1]}' 2> /dev/null); then
+            CCM_CLUSTER_CIDR="${CCM_CLUSTER_CIDR:-}\,${CIDR1}"
+        fi
+    fi
+    echo "CCM cluster CIDR: ${CCM_CLUSTER_CIDR:-}"
+
+    # export the target cluster KUBECONFIG if not already set
+    export KUBECONFIG="${KUBECONFIG:-${PWD}/kubeconfig}"
+
+    # Copy the kubeadm configmap to the calico-system namespace. This is a workaround needed for the calico-node-windows daemonset to be able to run in the calico-system namespace.
+    "${KUBECTL}" create ns calico-system
+    "${KUBECTL}" get configmap kubeadm-config --namespace=kube-system -o yaml \
+    | sed 's/namespace: kube-system/namespace: calico-system/' \
+    | ${KUBECTL} create -f -
+
+    # install cni
+    echo "Installing Calico CNI via helm"
+    "${HELM}" repo add projectcalico https://projectcalico.docs.tigera.io/charts
+    "${HELM}" install calico projectcalico/tigera-operator -f "${CALICO_VALUES:-${REPO_ROOT}/templates/addons/calico/values.yaml}" --namespace tigera-operator --create-namespace
+
+    export -f wait_for_nodes
+    timeout --foreground 1800 bash -c wait_for_nodes
+
+    # Add FeatureOverride for ChecksumOffloadBroken in FelixConfiguration.
+    # This is the recommended workaround for https://github.com/projectcalico/calico/issues/3145.
+    "${KUBECTL}" apply -f "${REPO_ROOT}"/templates/addons/calico/felix-override.yaml
+
+    # install cloud-provider-azure components, if using out-of-tree
+    if [[ -n "${TEST_CCM:-}" ]]; then
+        CLOUD_CONFIG="/etc/kubernetes/azure.json"
+        CONFIG_SECRET_NAME=""
+        ENABLE_DYNAMIC_RELOADING=false
+        if [[ -n "${LOAD_CLOUD_CONFIG_FROM_SECRET:-}" ]]; then
+            CLOUD_CONFIG=""
+            CONFIG_SECRET_NAME="azure-cloud-provider"
+            ENABLE_DYNAMIC_RELOADING=true
+            copy_secret
+        fi
+
+        export CCM_LOG_VERBOSITY="${CCM_LOG_VERBOSITY:-4}"
+        echo "Installing cloud-provider-azure components via helm"
+        "${HELM}" install --repo https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo cloud-provider-azure --generate-name \
+            --set infra.clusterName="${CLUSTER_NAME}" \
+            --set cloudControllerManager.imageRepository="${IMAGE_REGISTRY}" \
+            --set cloudNodeManager.imageRepository="${IMAGE_REGISTRY}" \
+            --set cloudControllerManager.imageName="${CCM_IMAGE_NAME}" \
+            --set cloudNodeManager.imageName="${CNM_IMAGE_NAME}" \
+            --set-string cloudControllerManager.imageTag="${IMAGE_TAG}" \
+            --set-string cloudNodeManager.imageTag="${IMAGE_TAG}" \
+            --set cloudControllerManager.replicas="${CCM_COUNT}" \
+            --set cloudControllerManager.enableDynamicReloading="${ENABLE_DYNAMIC_RELOADING}"  \
+            --set cloudControllerManager.cloudConfig="${CLOUD_CONFIG}" \
+            --set cloudControllerManager.cloudConfigSecretName="${CONFIG_SECRET_NAME}" \
+            --set cloudControllerManager.logVerbosity="${CCM_LOG_VERBOSITY}" \
+            --set-string cloudControllerManager.clusterCIDR="${CCM_CLUSTER_CIDR}"
+    fi
+
+    echo "Waiting for all calico-system pods to be ready"
+    "${KUBECTL}" wait --for=condition=Ready pod -n calico-system --all --timeout=10m
+
+    echo "Waiting for all kube-system pods to be ready"
+    "${KUBECTL}" wait --for=condition=Ready pod -n kube-system --all --timeout=10m
+}
+
 wait_for_nodes() {
     echo "Waiting for ${CONTROL_PLANE_MACHINE_COUNT} control plane machine(s), ${WORKER_MACHINE_COUNT} worker machine(s), and ${WINDOWS_WORKER_MACHINE_COUNT} windows machine(s) to become Ready"
 
@@ -144,12 +215,12 @@ wait_for_nodes() {
 copy_secret() {
     # point at the management cluster
     unset KUBECONFIG
-    "${KUBECTL}" get secret "${CLUSTER_NAME}-control-plane-azure-json" -o jsonpath='{.data.control-plane-azure\.json}' | base64 --decode > azure_json
-    
+    "${KUBECTL}" get secret "${CLUSTER_NAME}-control-plane-azure-json" -o jsonpath='{.data.control-plane-azure\.json}' | base64 --decode >azure_json
+
     # set KUBECONFIG back to the workload cluster
     export KUBECONFIG="${KUBECONFIG:-${PWD}/kubeconfig}"
     "${KUBECTL}" create secret generic "${CONFIG_SECRET_NAME}" -n kube-system \
-      --from-file=cloud-config=azure_json
+        --from-file=cloud-config=azure_json
     rm azure_json
 }
 
@@ -185,46 +256,8 @@ export ARTIFACTS="${ARTIFACTS:-${PWD}/_artifacts}"
 # create cluster
 create_cluster
 
-# export the target cluster KUBECONFIG if not already set
-export KUBECONFIG="${KUBECONFIG:-${PWD}/kubeconfig}"
-
-export -f wait_for_nodes
-timeout --foreground 1800 bash -c wait_for_nodes
-
-# install cloud-provider-azure components, if using out-of-tree
-if [[ -n "${TEST_CCM:-}" ]]; then
-    if [[ -n "${TEST_WINDOWS:-}" ]]; then
-        # "app=calico" is the label only for calico-node-windows pods
-        "${KUBECTL}" wait --for=condition=Ready pod -l app=calico -n kube-system --timeout=10m
-    fi
-
-    CLOUD_CONFIG="/etc/kubernetes/azure.json"
-    CONFIG_SECRET_NAME=""
-    ENABLE_DYNAMIC_RELOADING=false
-    if [[ -n "${LOAD_CLOUD_CONFIG_FROM_SECRET:-}" ]]; then
-        CLOUD_CONFIG=""
-        CONFIG_SECRET_NAME="azure-cloud-provider"
-        ENABLE_DYNAMIC_RELOADING=true
-        copy_secret
-    fi
-
-    echo "Installing cloud-provider-azure components via helm"
-    "${HELM}" install --repo https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo cloud-provider-azure --generate-name \
---set infra.clusterName="${CLUSTER_NAME}" \
---set cloudControllerManager.imageRepository="${IMAGE_REGISTRY}" \
---set cloudNodeManager.imageRepository="${IMAGE_REGISTRY}" \
---set cloudControllerManager.imageName="${CCM_IMAGE_NAME}" \
---set cloudNodeManager.imageName="${CNM_IMAGE_NAME}" \
---set-string cloudControllerManager.imageTag="${IMAGE_TAG}" \
---set-string cloudNodeManager.imageTag="${IMAGE_TAG}" \
---set cloudControllerManager.replicas="${CCM_COUNT}" \
---set cloudControllerManager.enableDynamicReloading="${ENABLE_DYNAMIC_RELOADING}"  \
---set cloudControllerManager.cloudConfig="${CLOUD_CONFIG}" \
---set cloudControllerManager.cloudConfigSecretName="${CONFIG_SECRET_NAME}"
-
-    echo "Waiting for all kube-system pods to be ready"
-    "${KUBECTL}" wait --for=condition=Ready pod -n kube-system --all --timeout=10m
-fi
+# install CNI and CCM
+install_addons
 
 if [[ "${#}" -gt 0 ]]; then
     # disable error exit so we can run post-command cleanup

@@ -69,7 +69,7 @@ var (
 		FrontendIPConfigurationID: to.StringPtr("frontend-ip-config-id-2"),
 	}
 
-	internalError = autorest.NewErrorWithResponse("", "", &http.Response{StatusCode: 500}, "Internal Server Error")
+	internalError = autorest.NewErrorWithResponse("", "", &http.Response{StatusCode: http.StatusInternalServerError}, "Internal Server Error")
 )
 
 func getFakeNatSpecWithoutPort(spec InboundNatSpec) *InboundNatSpec {
@@ -179,7 +179,7 @@ func TestReconcileInboundNATRule(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			g := NewWithT(t)
-			t.Parallel()
+			// TODO: investigate why t.Parallel() trips the race detector here.
 			mockCtrl := gomock.NewController(t)
 			defer mockCtrl.Finish()
 			scopeMock := mock_inboundnatrules.NewMockInboundNatScope(mockCtrl)

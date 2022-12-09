@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 	"sigs.k8s.io/cluster-api-provider-azure/feature"
+	webhookutils "sigs.k8s.io/cluster-api-provider-azure/util/webhook"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
@@ -63,25 +64,25 @@ func (c *AzureCluster) ValidateUpdate(oldRaw runtime.Object) error {
 	var allErrs field.ErrorList
 	old := oldRaw.(*AzureCluster)
 
-	if !reflect.DeepEqual(c.Spec.ResourceGroup, old.Spec.ResourceGroup) {
-		allErrs = append(allErrs,
-			field.Invalid(field.NewPath("spec", "ResourceGroup"),
-				c.Spec.ResourceGroup, "field is immutable"),
-		)
+	if err := webhookutils.ValidateImmutable(
+		field.NewPath("Spec", "ResourceGroup"),
+		old.Spec.ResourceGroup,
+		c.Spec.ResourceGroup); err != nil {
+		allErrs = append(allErrs, err)
 	}
 
-	if !reflect.DeepEqual(c.Spec.SubscriptionID, old.Spec.SubscriptionID) {
-		allErrs = append(allErrs,
-			field.Invalid(field.NewPath("spec", "SubscriptionID"),
-				c.Spec.SubscriptionID, "field is immutable"),
-		)
+	if err := webhookutils.ValidateImmutable(
+		field.NewPath("Spec", "SubscriptionID"),
+		old.Spec.SubscriptionID,
+		c.Spec.SubscriptionID); err != nil {
+		allErrs = append(allErrs, err)
 	}
 
-	if !reflect.DeepEqual(c.Spec.Location, old.Spec.Location) {
-		allErrs = append(allErrs,
-			field.Invalid(field.NewPath("spec", "Location"),
-				c.Spec.Location, "field is immutable"),
-		)
+	if err := webhookutils.ValidateImmutable(
+		field.NewPath("Spec", "Location"),
+		old.Spec.Location,
+		c.Spec.Location); err != nil {
+		allErrs = append(allErrs, err)
 	}
 
 	if old.Spec.ControlPlaneEndpoint.Host != "" && c.Spec.ControlPlaneEndpoint.Host != old.Spec.ControlPlaneEndpoint.Host {
@@ -115,11 +116,11 @@ func (c *AzureCluster) ValidateUpdate(oldRaw runtime.Object) error {
 		}
 	}
 
-	if !reflect.DeepEqual(c.Spec.NetworkSpec.PrivateDNSZoneName, old.Spec.NetworkSpec.PrivateDNSZoneName) {
-		allErrs = append(allErrs,
-			field.Invalid(field.NewPath("spec", "NetworkSpec", "PrivateDNSZoneName"),
-				c.Spec.NetworkSpec.PrivateDNSZoneName, "field is immutable"),
-		)
+	if err := webhookutils.ValidateImmutable(
+		field.NewPath("Spec", "NetworkSpec", "PrivateDNSZoneName"),
+		old.Spec.NetworkSpec.PrivateDNSZoneName,
+		c.Spec.NetworkSpec.PrivateDNSZoneName); err != nil {
+		allErrs = append(allErrs, err)
 	}
 
 	// Allow enabling azure bastion but avoid disabling it.
@@ -130,11 +131,11 @@ func (c *AzureCluster) ValidateUpdate(oldRaw runtime.Object) error {
 		)
 	}
 
-	if !reflect.DeepEqual(c.Spec.NetworkSpec.ControlPlaneOutboundLB, old.Spec.NetworkSpec.ControlPlaneOutboundLB) {
-		allErrs = append(allErrs,
-			field.Invalid(field.NewPath("spec", "networkSpec", "controlPlaneOutboundLB"),
-				c.Spec.NetworkSpec.ControlPlaneOutboundLB, "field is immutable"),
-		)
+	if err := webhookutils.ValidateImmutable(
+		field.NewPath("Spec", "NetworkSpec", "ControlPlaneOutboundLB"),
+		old.Spec.NetworkSpec.ControlPlaneOutboundLB,
+		c.Spec.NetworkSpec.ControlPlaneOutboundLB); err != nil {
+		allErrs = append(allErrs, err)
 	}
 
 	allErrs = append(allErrs, c.validateSubnetUpdate(old)...)

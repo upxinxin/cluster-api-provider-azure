@@ -42,7 +42,7 @@ metadata:
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachinePool
 metadata:
-  name: pool0
+  name: ${CLUSTER_NAME}-pool0
   namespace: default
 spec:
   clusterName: ${CLUSTER_NAME}
@@ -56,24 +56,23 @@ spec:
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureManagedMachinePool
-        name: pool0
+        name: ${CLUSTER_NAME}-pool0
       version: ${KUBERNETES_VERSION}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
-  name: pool0
+  name: ${CLUSTER_NAME}-pool0
   namespace: default
 spec:
-  enableNodePublicIP: false
   mode: System
-  osDiskSizeGB: 30
+  name: pool0
   sku: ${AZURE_NODE_MACHINE_TYPE}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachinePool
 metadata:
-  name: pool1
+  name: ${CLUSTER_NAME}-pool1
   namespace: default
 spec:
   clusterName: ${CLUSTER_NAME}
@@ -87,19 +86,17 @@ spec:
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: AzureManagedMachinePool
-        name: pool1
+        name: ${CLUSTER_NAME}-pool1
       version: ${KUBERNETES_VERSION}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
-  name: pool1
+  name: ${CLUSTER_NAME}-pool1
   namespace: default
 spec:
-  enableNodePublicIP: false
   mode: User
-  osDiskSizeGB: 40
-  scaleSetPriority: Regular
+  name: pool1
   sku: ${AZURE_NODE_MACHINE_TYPE}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1

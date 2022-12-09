@@ -18,17 +18,26 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-root=$(dirname "${BASH_SOURCE[0]}")/..
-kustomize="${root}/hack/tools/bin/kustomize"
-make --directory="${root}" "${kustomize##*/}"
+REPO_ROOT=$(dirname "${BASH_SOURCE[0]}")/..
+# shellcheck source=hack/common-vars.sh
+source "${REPO_ROOT}/hack/common-vars.sh"
 
-flavors_dir="${root}/templates/flavors/"
-ci_dir="${root}/templates/test/ci/"
-dev_dir="${root}/templates/test/dev/"
+make --directory="${REPO_ROOT}" "${KUSTOMIZE##*/}"
 
-find "${flavors_dir}"* -maxdepth 0 -type d -print0 | xargs -0 -I {} basename {} | grep -v base | xargs -I {} sh -c "${kustomize} build --load-restrictor LoadRestrictionsNone --reorder none ${flavors_dir}{} > ${root}/templates/cluster-template-{}.yaml"
+flavors_dir="${REPO_ROOT}/templates/flavors/"
+ci_dir="${REPO_ROOT}/templates/test/ci/"
+dev_dir="${REPO_ROOT}/templates/test/dev/"
+
+for name in $(find "${flavors_dir}"* -maxdepth 0 -type d -print0 | xargs -0 -I {} basename {} | grep -v base); do
+  ${KUSTOMIZE} build --load-restrictor LoadRestrictionsNone --reorder none "${flavors_dir}${name}" > "${REPO_ROOT}/templates/cluster-template-${name}.yaml"
+done
 # move the default template to the default file expected by clusterctl
-mv "${root}/templates/cluster-template-default.yaml" "${root}/templates/cluster-template.yaml"
+mv "${REPO_ROOT}/templates/cluster-template-default.yaml" "${REPO_ROOT}/templates/cluster-template.yaml"
 
-find "${ci_dir}"* -maxdepth 0 -type d -print0 | xargs -0 -I {} basename {} | grep -v patches | xargs -I {} sh -c "${kustomize} build --load-restrictor LoadRestrictionsNone --reorder none ${ci_dir}{} > ${ci_dir}cluster-template-{}.yaml"
-find "${dev_dir}"* -maxdepth 0 -type d -print0 | xargs -0 -I {} basename {} | grep -v patches | xargs -I {} sh -c "${kustomize} build --load-restrictor LoadRestrictionsNone --reorder none ${dev_dir}{} > ${dev_dir}cluster-template-{}.yaml"
+for name in $(find "${ci_dir}"* -maxdepth 0 -type d -print0 | xargs -0 -I {} basename {} | grep -v patches); do
+  ${KUSTOMIZE} build --load-restrictor LoadRestrictionsNone --reorder none "${ci_dir}${name}" > "${ci_dir}cluster-template-${name}.yaml"
+done
+
+for name in $(find "${dev_dir}"* -maxdepth 0 -type d -print0 | xargs -0 -I {} basename {} | grep -v patches); do
+  ${KUSTOMIZE} build --load-restrictor LoadRestrictionsNone --reorder none "${dev_dir}${name}" > "${dev_dir}cluster-template-${name}.yaml"
+done

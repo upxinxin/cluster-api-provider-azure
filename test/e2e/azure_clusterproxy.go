@@ -36,7 +36,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/profiles/2020-09-01/monitor/mgmt/insights"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/to"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -47,7 +47,6 @@ import (
 	infrav1exp "sigs.k8s.io/cluster-api-provider-azure/exp/api/v1beta1"
 	expv1 "sigs.k8s.io/cluster-api/exp/api/v1beta1"
 	"sigs.k8s.io/cluster-api/test/framework"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type (
@@ -89,61 +88,67 @@ func initScheme() *runtime.Scheme {
 }
 
 func (acp *AzureClusterProxy) CollectWorkloadClusterLogs(ctx context.Context, namespace, name, outputPath string) {
-	Byf("Dumping workload cluster %s/%s logs", namespace, name)
+	Logf("Dumping workload cluster %s/%s logs", namespace, name)
 	acp.ClusterProxy.CollectWorkloadClusterLogs(ctx, namespace, name, outputPath)
 
 	aboveMachinesPath := strings.Replace(outputPath, "/machines", "", 1)
 
-	Byf("Dumping workload cluster %s/%s kube-system pod logs", namespace, name)
+	Logf("Dumping workload cluster %s/%s kube-system pod logs", namespace, name)
 	start := time.Now()
 	acp.collectPodLogs(ctx, namespace, name, aboveMachinesPath)
-	Byf("Fetching kube-system pod logs took %s", time.Since(start).String())
+	Logf("Fetching kube-system pod logs took %s", time.Since(start).String())
 
-	Byf("Dumping workload cluster %s/%s Azure activity log", namespace, name)
+	Logf("Dumping workload cluster %s/%s Azure activity log", namespace, name)
 	start = time.Now()
 	acp.collectActivityLogs(ctx, namespace, name, aboveMachinesPath)
-	Byf("Fetching activity logs took %s", time.Since(start).String())
+	Logf("Fetching activity logs took %s", time.Since(start).String())
 }
 
 func (acp *AzureClusterProxy) collectPodLogs(ctx context.Context, namespace string, name string, aboveMachinesPath string) {
 	workload := acp.GetWorkloadCluster(ctx, namespace, name)
 	pods := &corev1.PodList{}
-	Expect(workload.GetClient().List(ctx, pods, client.InNamespace(kubesystem))).To(Succeed())
 
-	events, err := workload.GetClientSet().CoreV1().Events(kubesystem).List(ctx, metav1.ListOptions{})
-	eventMsgs := map[string]string{}
-	if err != nil {
-		Byf("failed to get events in kube-system namespace: %v", err)
-	} else {
-		for _, event := range events.Items {
-			if event.InvolvedObject.Kind == "Pod" {
-				if _, ok := eventMsgs[event.InvolvedObject.Name]; !ok {
-					eventMsgs[event.InvolvedObject.Name] = event.Message
-				} else {
-					eventMsgs[event.InvolvedObject.Name] += fmt.Sprintf("\n%s", event.Message)
-				}
-			}
-		}
-	}
+	Expect(workload.GetClient().List(ctx, pods)).To(Succeed())
+
+	var events = make(map[string]*corev1.EventList)
+	var err error
 
 	for _, pod := range pods.Items {
+		podNamespace := pod.GetNamespace()
+
+		// Collect events for Pod.
+		if _, ok := events[podNamespace]; !ok {
+			events[podNamespace], err = workload.GetClientSet().CoreV1().Events(podNamespace).List(ctx, metav1.ListOptions{})
+			if err != nil {
+				Logf("failed to get events in %s namespace: %v", podNamespace, err)
+			}
+		}
+
+		var eventMsgs string
+
+		for _, event := range events[podNamespace].Items {
+			if event.InvolvedObject.Kind == "Pod" && event.InvolvedObject.Name == pod.GetName() {
+				eventMsgs += fmt.Sprintf("%s\n", event.Message)
+			}
+		}
+
 		for _, container := range pod.Spec.Containers {
 			// Watch each container's logs in a goroutine so we can stream them all concurrently.
 			go func(pod corev1.Pod, container corev1.Container) {
 				defer GinkgoRecover()
 
-				Byf("Creating log watcher for controller %s/%s, container %s", kubesystem, pod.Name, container.Name)
-				logFile := path.Join(aboveMachinesPath, kubesystem, pod.Name, container.Name+".log")
+				Logf("Creating log watcher for controller %s/%s, container %s", podNamespace, pod.Name, container.Name)
+				logFile := path.Join(aboveMachinesPath, podNamespace, pod.Name, container.Name+".log")
 				if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
 					// Failing to mkdir should not cause the test to fail
-					Byf("Error mkdir: %v", err)
+					Logf("Error mkdir: %v", err)
 					return
 				}
 
 				f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 				if err != nil {
 					// Failing to fetch logs should not cause the test to fail
-					Byf("Error opening file to write pod logs: %v", err)
+					Logf("Error opening file to write pod logs: %v", err)
 					return
 				}
 				defer f.Close()
@@ -153,10 +158,10 @@ func (acp *AzureClusterProxy) collectPodLogs(ctx context.Context, namespace stri
 					Follow:    true,
 				}
 
-				podLogs, err := workload.GetClientSet().CoreV1().Pods(kubesystem).GetLogs(pod.Name, opts).Stream(ctx)
+				podLogs, err := workload.GetClientSet().CoreV1().Pods(podNamespace).GetLogs(pod.Name, opts).Stream(ctx)
 				if err != nil {
 					// Failing to stream logs should not cause the test to fail
-					Byf("Error starting logs stream for pod %s/%s, container %s: %v", kubesystem, pod.Name, container.Name, err)
+					Logf("Error starting logs stream for pod %s/%s, container %s: %v", podNamespace, pod.Name, container.Name, err)
 					return
 				}
 				defer podLogs.Close()
@@ -166,7 +171,7 @@ func (acp *AzureClusterProxy) collectPodLogs(ctx context.Context, namespace stri
 				_, err = out.ReadFrom(podLogs)
 				if errors.Is(err, io.ErrUnexpectedEOF) {
 					// Failing to stream logs should not cause the test to fail
-					Byf("Got error while streaming logs for pod %s/%s, container %s: %v", kubesystem, pod.Name, container.Name, err)
+					Logf("Got error while streaming logs for pod %s/%s, container %s: %v", podNamespace, pod.Name, container.Name, err)
 				}
 			}(pod, container)
 		}
@@ -174,34 +179,28 @@ func (acp *AzureClusterProxy) collectPodLogs(ctx context.Context, namespace stri
 		go func(pod corev1.Pod) {
 			defer GinkgoRecover()
 
-			Byf("Collecting events for Pod %s/%s", kubesystem, pod.Name)
-			eventFile := path.Join(aboveMachinesPath, kubesystem, pod.Name, "pod-events.txt")
+			Logf("Collecting events for Pod %s/%s", podNamespace, pod.Name)
+			eventFile := path.Join(aboveMachinesPath, podNamespace, pod.Name, "pod-events.txt")
 			if err := os.MkdirAll(filepath.Dir(eventFile), 0o755); err != nil {
 				// Failing to mkdir should not cause the test to fail
-				Byf("Error mkdir: %v", err)
+				Logf("Error mkdir: %v", err)
 				return
 			}
 
 			f, err := os.OpenFile(eventFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 			if err != nil {
 				// Failing to open the file should not cause the test to fail
-				Byf("Error opening file to write Pod events: %v", err)
+				Logf("Error opening file to write Pod events: %v", err)
 				return
 			}
 			defer f.Close()
 
-			msg, ok := eventMsgs[pod.Name]
-			if !ok {
-				Byf("failed to find events of Pod %q", pod.Name)
-				return
-			}
-
 			out := bufio.NewWriter(f)
 			defer out.Flush()
-			_, err = out.WriteString(msg)
+			_, err = out.WriteString(eventMsgs)
 			if errors.Is(err, io.ErrUnexpectedEOF) {
 				// Failing to collect event message should not cause the test to fail
-				Byf("failed to collect event message of pod %s/%s: %v", kubesystem, pod.Name, err)
+				Logf("failed to collect event message of pod %s/%s: %v", podNamespace, pod.Name, err)
 			}
 		}(pod)
 	}
@@ -225,14 +224,14 @@ func (acp *AzureClusterProxy) collectActivityLogs(ctx context.Context, namespace
 		controlPlane, err := getAzureManagedControlPlane(timeoutctx, clusterClient, namespace, name)
 		if err != nil {
 			// Failing to fetch logs should not cause the test to fail
-			Byf("Error fetching activity logs for cluster %s in namespace %s.  Not able to find the AzureManagedControlPlane on the management cluster: %v", name, namespace, err)
+			Logf("Error fetching activity logs for cluster %s in namespace %s.  Not able to find the AzureManagedControlPlane on the management cluster: %v", name, namespace, err)
 			return
 		}
 		groupName = controlPlane.Spec.ResourceGroupName
 	} else {
 		if err != nil {
 			// Failing to fetch logs should not cause the test to fail
-			Byf("Error fetching activity logs for cluster %s in namespace %s.  Not able to find the workload cluster on the management cluster: %v", name, namespace, err)
+			Logf("Error fetching activity logs for cluster %s in namespace %s.  Not able to find the workload cluster on the management cluster: %v", name, namespace, err)
 			return
 		}
 		groupName = workloadCluster.Spec.ResourceGroup
@@ -244,7 +243,7 @@ func (acp *AzureClusterProxy) collectActivityLogs(ctx context.Context, namespace
 	itr, err := activityLogsClient.ListComplete(timeoutctx, fmt.Sprintf("eventTimestamp ge '%s' and eventTimestamp le '%s' and resourceGroupName eq '%s'", start, end, groupName), "")
 	if err != nil {
 		// Failing to fetch logs should not cause the test to fail
-		Byf("Error fetching activity logs for resource group %s: %v", groupName, err)
+		Logf("Error fetching activity logs for resource group %s: %v", groupName, err)
 		return
 	}
 
@@ -254,7 +253,7 @@ func (acp *AzureClusterProxy) collectActivityLogs(ctx context.Context, namespace
 	f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 	if err != nil {
 		// Failing to fetch logs should not cause the test to fail
-		Byf("Error opening file to write activity logs: %v", err)
+		Logf("Error opening file to write activity logs: %v", err)
 		return
 	}
 	defer f.Close()
@@ -263,17 +262,17 @@ func (acp *AzureClusterProxy) collectActivityLogs(ctx context.Context, namespace
 
 	for ; itr.NotDone(); err = itr.NextWithContext(timeoutctx) {
 		if err != nil {
-			Byf("Got error while iterating over activity logs for resource group %s: %v", groupName, err)
+			Logf("Got error while iterating over activity logs for resource group %s: %v", groupName, err)
 			return
 		}
 		event := itr.Value()
 		if to.String(event.Category.Value) != "Policy" {
 			b, err := json.MarshalIndent(myEventData(event), "", "    ")
 			if err != nil {
-				Byf("Got error converting activity logs data to json: %v", err)
+				Logf("Got error converting activity logs data to json: %v", err)
 			}
 			if _, err = out.WriteString(string(b) + "\n"); err != nil {
-				Byf("Got error while writing activity logs for resource group %s: %v", groupName, err)
+				Logf("Got error while writing activity logs for resource group %s: %v", groupName, err)
 			}
 		}
 	}

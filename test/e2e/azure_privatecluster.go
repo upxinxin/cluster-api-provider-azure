@@ -34,7 +34,7 @@ import (
 	azuresdk "github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/to"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
@@ -150,6 +150,8 @@ func AzurePrivateClusterSpec(ctx context.Context, inputGetter func() AzurePrivat
 		WaitForClusterIntervals:      input.E2EConfig.GetIntervals(specName, "wait-private-cluster"),
 		WaitForControlPlaneIntervals: input.E2EConfig.GetIntervals(specName, "wait-control-plane-ha"),
 		WaitForMachineDeployments:    input.E2EConfig.GetIntervals(specName, "wait-worker-nodes"),
+		// NOTE: We don't add control plane waiters here because Helm install will fail since the apiserver is private and not reachable from the prow cluster.
+		// As a workaround, we use still ClusterResourceSet to install CNI on the private cluster until a Helm integration is available.
 	}, result)
 	cluster = result.Cluster
 
@@ -167,6 +169,7 @@ func AzurePrivateClusterSpec(ctx context.Context, inputGetter func() AzurePrivat
 			CancelWatches:          publicCancelWatches,
 			IntervalsGetter:        e2eConfig.GetIntervals,
 			SkipCleanup:            input.SkipCleanup,
+			SkipLogCollection:      skipLogCollection,
 			ArtifactFolder:         input.ArtifactFolder,
 			SkipResourceGroupCheck: true, // We don't expect the resource group to be deleted since the private cluster does not own the resource group.
 		}

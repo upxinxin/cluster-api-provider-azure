@@ -25,7 +25,7 @@ import (
 	"os"
 	"path/filepath"
 
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +46,7 @@ type SelfHostedSpecInput struct {
 	BootstrapClusterProxy framework.ClusterProxy
 	ArtifactFolder        string
 	SkipCleanup           bool
+	ControlPlaneWaiters   clusterctl.ControlPlaneWaiters
 }
 
 // SelfHostedSpec implements a test that verifies Cluster API creating a cluster, pivoting to a self-hosted cluster.
@@ -123,6 +124,7 @@ func SelfHostedSpec(ctx context.Context, inputGetter func() SelfHostedSpecInput)
 			WaitForClusterIntervals:      input.E2EConfig.GetIntervals(specName, "wait-cluster"),
 			WaitForControlPlaneIntervals: input.E2EConfig.GetIntervals(specName, "wait-control-plane"),
 			WaitForMachineDeployments:    input.E2EConfig.GetIntervals(specName, "wait-worker-nodes"),
+			ControlPlaneWaiters:          input.ControlPlaneWaiters,
 		}, clusterResources)
 
 		By("Turning the workload cluster into a management cluster")
@@ -232,14 +234,15 @@ func SelfHostedSpec(ctx context.Context, inputGetter func() SelfHostedSpecInput)
 		}
 
 		cleanInput := cleanupInput{
-			SpecName:        specName,
-			Cluster:         clusterResources.Cluster,
-			ClusterProxy:    input.BootstrapClusterProxy,
-			Namespace:       namespace,
-			CancelWatches:   cancelWatches,
-			IntervalsGetter: input.E2EConfig.GetIntervals,
-			SkipCleanup:     input.SkipCleanup,
-			ArtifactFolder:  input.ArtifactFolder,
+			SpecName:          specName,
+			Cluster:           clusterResources.Cluster,
+			ClusterProxy:      input.BootstrapClusterProxy,
+			Namespace:         namespace,
+			CancelWatches:     cancelWatches,
+			IntervalsGetter:   input.E2EConfig.GetIntervals,
+			SkipCleanup:       input.SkipCleanup,
+			SkipLogCollection: skipLogCollection,
+			ArtifactFolder:    input.ArtifactFolder,
 		}
 		// Dumps all the resources in the spec namespace, then cleanups the cluster object and the spec namespace itself.
 		dumpSpecResourcesAndCleanup(ctx, cleanInput)

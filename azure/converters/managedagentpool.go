@@ -23,7 +23,7 @@ import (
 // AgentPoolToManagedClusterAgentPoolProfile converts a AgentPoolSpec to an Azure SDK ManagedClusterAgentPoolProfile used in managedcluster reconcile.
 func AgentPoolToManagedClusterAgentPoolProfile(pool containerservice.AgentPool) containerservice.ManagedClusterAgentPoolProfile {
 	properties := pool.ManagedClusterAgentPoolProfileProperties
-	return containerservice.ManagedClusterAgentPoolProfile{
+	agentPool := containerservice.ManagedClusterAgentPoolProfile{
 		Name:                 pool.Name, // Note: if converting from agentPoolSpec.Parameters(), this field will not be set
 		VMSize:               properties.VMSize,
 		OsType:               properties.OsType,
@@ -45,5 +45,10 @@ func AgentPoolToManagedClusterAgentPoolProfile(pool containerservice.AgentPool) 
 		EnableNodePublicIP:   properties.EnableNodePublicIP,
 		NodePublicIPPrefixID: properties.NodePublicIPPrefixID,
 		ScaleSetPriority:     properties.ScaleSetPriority,
+		Tags:                 properties.Tags,
 	}
+	if properties.KubeletConfig != nil {
+		agentPool.KubeletConfig = properties.KubeletConfig
+	}
+	return agentPool
 }

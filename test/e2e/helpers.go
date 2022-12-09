@@ -38,8 +38,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/profiles/2020-09-01/compute/mgmt/compute"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/blang/semver"
-	. "github.com/onsi/ginkgo"
-	"github.com/onsi/ginkgo/config"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"github.com/pkg/sftp"
@@ -83,7 +82,7 @@ type deploymentsClientAdapter struct {
 }
 
 // Get fetches the deployment named by the key and updates the provided object.
-func (c deploymentsClientAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (c deploymentsClientAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	deployment, err := c.client.Get(ctx, key.Name, metav1.GetOptions{})
 	if deployObj, ok := obj.(*appsv1.Deployment); ok {
 		deployment.DeepCopyInto(deployObj)
@@ -153,7 +152,7 @@ type jobsClientAdapter struct {
 }
 
 // Get fetches the job named by the key and updates the provided object.
-func (c jobsClientAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (c jobsClientAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	job, err := c.client.Get(ctx, key.Name, metav1.GetOptions{})
 	if jobObj, ok := obj.(*batchv1.Job); ok {
 		job.DeepCopyInto(jobObj)
@@ -250,12 +249,64 @@ type servicesClientAdapter struct {
 }
 
 // Get fetches the service named by the key and updates the provided object.
-func (c servicesClientAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+func (c servicesClientAdapter) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
 	service, err := c.client.Get(ctx, key.Name, metav1.GetOptions{})
 	if serviceObj, ok := obj.(*corev1.Service); ok {
 		service.DeepCopyInto(serviceObj)
 	}
 	return err
+}
+
+// WaitForDaemonsetInput is the input for WaitForDaemonset.
+type WaitForDaemonsetInput struct {
+	Getter    framework.Getter
+	DaemonSet *appsv1.DaemonSet
+	Clientset *kubernetes.Clientset
+}
+
+// WaitForDaemonset retries during E2E until a daemonset's pods are all Running.
+func WaitForDaemonset(ctx context.Context, input WaitForDaemonsetInput, intervals ...interface{}) {
+	start := time.Now()
+	namespace, name := input.DaemonSet.GetNamespace(), input.DaemonSet.GetName()
+	Byf("waiting for daemonset %s/%s to be complete", namespace, name)
+	Logf("waiting for daemonset %s/%s to be complete", namespace, name)
+	Eventually(func() bool {
+		key := client.ObjectKey{Namespace: namespace, Name: name}
+		if err := input.Getter.Get(ctx, key, input.DaemonSet); err == nil {
+			if input.DaemonSet.Status.DesiredNumberScheduled == input.DaemonSet.Status.NumberReady {
+				Logf("%d daemonset %s/%s pods are running, took %v", input.DaemonSet.Status.NumberReady, namespace, name, time.Since(start))
+				return true
+			}
+		}
+		return false
+	}, intervals...).Should(BeTrue(), func() string { return DescribeFailedDaemonset(ctx, input) })
+}
+
+// GetWaitForDaemonsetAvailableInput is a convenience func to compose a WaitForDaemonsetInput
+func GetWaitForDaemonsetAvailableInput(ctx context.Context, clusterProxy framework.ClusterProxy, name, namespace string, specName string) WaitForDaemonsetInput {
+	Expect(clusterProxy).NotTo(BeNil())
+	cl := clusterProxy.GetClient()
+	var ds = &appsv1.DaemonSet{}
+	Eventually(func() error {
+		return cl.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ds)
+	}, e2eConfig.GetIntervals(specName, "wait-daemonset")...).Should(Succeed())
+	clientset := clusterProxy.GetClientSet()
+	return WaitForDaemonsetInput{
+		DaemonSet: ds,
+		Clientset: clientset,
+		Getter:    cl,
+	}
+}
+
+// DescribeFailedDaemonset returns detailed output to help debug a daemonset failure in e2e.
+func DescribeFailedDaemonset(ctx context.Context, input WaitForDaemonsetInput) string {
+	namespace, name := input.DaemonSet.GetNamespace(), input.DaemonSet.GetName()
+	b := strings.Builder{}
+	b.WriteString(fmt.Sprintf("Service %s/%s failed",
+		namespace, name))
+	b.WriteString(fmt.Sprintf("\nService:\n%s\n", prettyPrint(input.DaemonSet)))
+	b.WriteString(describeEvents(ctx, input.Clientset, namespace, name))
+	return b.String()
 }
 
 // WaitForServiceAvailableInput is the input for WaitForServiceAvailable.
@@ -369,15 +420,16 @@ func getAvailabilityZonesForRegion(location string, size string) ([]string, erro
 func logCheckpoint(specTimes map[string]time.Time) {
 	text := CurrentGinkgoTestDescription().TestText
 	start, started := specTimes[text]
+	suiteConfig, reporterConfig := GinkgoConfiguration()
 	if !started {
 		start = time.Now()
 		specTimes[text] = start
-		fmt.Fprintf(GinkgoWriter, "INFO: \"%s\" started at %s on Ginkgo node %d of %d\n", text,
-			start.Format(time.RFC1123), GinkgoParallelNode(), config.GinkgoConfig.ParallelTotal)
+		fmt.Fprintf(GinkgoWriter, "INFO: \"%s\" started at %s on Ginkgo node %d of %d and junit test report to file %s\n", text,
+			start.Format(time.RFC1123), GinkgoParallelProcess(), suiteConfig.ParallelTotal, reporterConfig.JUnitReport)
 	} else {
 		elapsed := time.Since(start)
-		fmt.Fprintf(GinkgoWriter, "INFO: \"%s\" ran for %s on Ginkgo node %d of %d\n", text,
-			elapsed.Round(time.Second), GinkgoParallelNode(), config.GinkgoConfig.ParallelTotal)
+		fmt.Fprintf(GinkgoWriter, "INFO: \"%s\" ran for %s on Ginkgo node %d of %d and reported junit test to file %s\n", text,
+			elapsed.Round(time.Second), GinkgoParallelProcess(), suiteConfig.ParallelTotal, reporterConfig.JUnitReport)
 	}
 }
 
@@ -764,29 +816,31 @@ func getPodLogs(ctx context.Context, clientset *kubernetes.Clientset, pod corev1
 }
 
 // InstallHelmChart takes a helm repo URL, a chart name, and release name, and installs a helm release onto the E2E workload cluster.
-func InstallHelmChart(ctx context.Context, input clusterctl.ApplyClusterTemplateAndWaitInput, repoURL, chartName, releaseName string, values []string) {
+func InstallHelmChart(ctx context.Context, input clusterctl.ApplyClusterTemplateAndWaitInput, namespace, repoURL, chartName, releaseName string, options *helmVals.Options) {
 	clusterProxy := input.ClusterProxy.GetWorkloadCluster(ctx, input.ConfigCluster.Namespace, input.ConfigCluster.ClusterName)
 	kubeConfigPath := clusterProxy.GetKubeconfigPath()
 	settings := helmCli.New()
 	settings.KubeConfig = kubeConfigPath
 	actionConfig := new(helmAction.Configuration)
-	ns := "default"
-	err := actionConfig.Init(settings.RESTClientGetter(), ns, "secret", Logf)
+	err := actionConfig.Init(settings.RESTClientGetter(), namespace, "secret", Logf)
 	Expect(err).To(BeNil())
 	i := helmAction.NewInstall(actionConfig)
 	if repoURL != "" {
 		i.RepoURL = repoURL
 	}
 	i.ReleaseName = releaseName
-	i.Namespace = ns
+	i.Namespace = namespace
+	i.CreateNamespace = true
 	Eventually(func() error {
 		cp, err := i.ChartPathOptions.LocateChart(chartName, helmCli.New())
 		if err != nil {
 			return err
 		}
 		p := helmGetter.All(settings)
-		valueOpts := &helmVals.Options{}
-		valueOpts.Values = values
+		if options == nil {
+			options = &helmVals.Options{}
+		}
+		valueOpts := options
 		vals, err := valueOpts.MergeValues(p)
 		if err != nil {
 			return err
@@ -802,20 +856,6 @@ func InstallHelmChart(ctx context.Context, input clusterctl.ApplyClusterTemplate
 		Logf(release.Info.Description)
 		return nil
 	}, input.WaitForControlPlaneIntervals...).Should(Succeed())
-}
-
-// WaitForDaemonset retries during E2E until a daemonset's pods are all Running.
-func WaitForDaemonset(ctx context.Context, input clusterctl.ApplyClusterTemplateAndWaitInput, cl client.Client, name, namespace string) {
-	Eventually(func() bool {
-		ds := &appsv1.DaemonSet{}
-		if err := cl.Get(ctx, client.ObjectKey{Name: name, Namespace: namespace}, ds); err != nil {
-			return false
-		}
-		if ds.Status.DesiredNumberScheduled == ds.Status.NumberReady {
-			return true
-		}
-		return false
-	}, input.WaitForControlPlaneIntervals...).Should(Equal(true))
 }
 
 func defaultConfigCluster(clusterName, namespace string) clusterctl.ConfigClusterInput {
@@ -846,4 +886,13 @@ func createClusterWithControlPlaneWaiters(ctx context.Context, configCluster clu
 		ControlPlaneWaiters:          cpWaiters,
 	}, result)
 	return result.Cluster, result.ControlPlane
+}
+
+func CopyConfigMap(ctx context.Context, cl client.Client, cmName, fromNamespace, toNamespace string) {
+	cm := &corev1.ConfigMap{}
+	Expect(cl.Get(ctx, client.ObjectKey{Name: cmName, Namespace: fromNamespace}, cm)).To(Succeed())
+	cm.SetNamespace(toNamespace)
+	cm.SetResourceVersion("")
+	framework.EnsureNamespace(ctx, cl, toNamespace)
+	Expect(cl.Create(ctx, cm.DeepCopy())).To(Succeed())
 }

@@ -81,7 +81,7 @@ ENVSUBST_VER := v2.0.0-20210730161058-179042472c46
 ENVSUBST_BIN := envsubst
 ENVSUBST := $(TOOLS_BIN_DIR)/$(ENVSUBST_BIN)-$(ENVSUBST_VER)
 
-GOLANGCI_LINT_VER := v1.49.0
+GOLANGCI_LINT_VER := v1.50.0
 GOLANGCI_LINT_BIN := golangci-lint
 GOLANGCI_LINT := $(TOOLS_BIN_DIR)/$(GOLANGCI_LINT_BIN)-$(GOLANGCI_LINT_VER)
 
@@ -101,11 +101,11 @@ KPROMO_VER := v3.3.0-beta.3
 KPROMO_BIN := kpromo
 KPROMO := $(TOOLS_BIN_DIR)/$(KPROMO_BIN)-$(KPROMO_VER)
 
-GO_APIDIFF_VER := v0.4.0
+GO_APIDIFF_VER := v0.5.0
 GO_APIDIFF_BIN := go-apidiff
 GO_APIDIFF := $(TOOLS_BIN_DIR)/$(GO_APIDIFF_BIN)
 
-GINKGO_VER := v1.16.5
+GINKGO_VER := v2.5.0
 GINKGO_BIN := ginkgo
 GINKGO := $(TOOLS_BIN_DIR)/$(GINKGO_BIN)-$(GINKGO_VER)
 
@@ -121,7 +121,7 @@ YQ_VER := v4.14.2
 YQ_BIN := yq
 YQ :=  $(TOOLS_BIN_DIR)/$(YQ_BIN)-$(YQ_VER)
 
-KIND_VER := v0.14.0
+KIND_VER := v0.17.0
 KIND_BIN := kind
 KIND :=  $(TOOLS_BIN_DIR)/$(KIND_BIN)-$(KIND_VER)
 
@@ -279,7 +279,7 @@ create-management-cluster: $(KUSTOMIZE) $(ENVSUBST) $(KUBECTL) $(KIND) ## Create
 	./hack/create-custom-cloud-provider-config.sh
 
 	# Deploy CAPI
-	curl --retry $(CURL_RETRIES) -sSL https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.2.4/cluster-api-components.yaml | $(ENVSUBST) | $(KUBECTL) apply -f -
+	curl --retry $(CURL_RETRIES) -sSL https://github.com/kubernetes-sigs/cluster-api/releases/download/v1.3.0/cluster-api-components.yaml | $(ENVSUBST) | $(KUBECTL) apply -f -
 
 	# Deploy CAPZ
 	$(KIND) load docker-image $(CONTROLLER_IMG)-$(ARCH):$(TAG) --name=capz
@@ -290,10 +290,9 @@ create-management-cluster: $(KUSTOMIZE) $(ENVSUBST) $(KUBECTL) $(KIND) ## Create
 	$(KUBECTL) wait --for=condition=Available --timeout=5m -n capi-kubeadm-bootstrap-system deployment -l cluster.x-k8s.io/provider=bootstrap-kubeadm
 	$(KUBECTL) wait --for=condition=Available --timeout=5m -n capi-kubeadm-control-plane-system deployment -l cluster.x-k8s.io/provider=control-plane-kubeadm
 
-	# apply CNI ClusterResourceSets
-	source ./scripts/ci-configmap.sh
-
-	$(KUBECTL) apply -f templates/addons/calico-resource-set.yaml
+	# install Windows Calico cluster resource set
+	$(KUBECTL) create configmap calico-windows-addon --from-file="$(ADDONS_DIR)/windows/calico" --dry-run=client -o yaml | kubectl apply -f -
+	$(KUBECTL) apply -f templates/addons/windows/calico-resource-set.yaml	
 
 	# Wait for CAPZ deployments
 	$(KUBECTL) wait --for=condition=Available --timeout=5m -n capz-system deployment -l cluster.x-k8s.io/provider=infrastructure-azure
@@ -358,7 +357,7 @@ delete-workload-cluster: $(KUBECTL) ## Deletes the example workload Kubernetes c
 .PHONY: docker-pull-prerequisites
 docker-pull-prerequisites: ## Pull prerequisites for building controller-manager.
 	docker pull docker/dockerfile:1.4
-	docker pull docker.io/library/golang:1.18
+	docker pull docker.io/library/golang:1.19
 	docker pull gcr.io/distroless/static:latest
 
 .PHONY: docker-build
@@ -476,9 +475,6 @@ generate-e2e-templates: $(KUSTOMIZE) ## Generate Azure infrastructure templates 
 	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template.yaml
 	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-md-remediation --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template-md-remediation.yaml
 	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-remediation --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-remediation.yaml
-	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-adoption/step1 --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-adoption.yaml
-	echo "---" >> $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-adoption.yaml
-	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-adoption/step2 --load-restrictor LoadRestrictionsNone >> $(AZURE_TEMPLATES)/v1beta1/cluster-template-kcp-adoption.yaml
 	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-machine-pool --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template-machine-pool.yaml
 	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-node-drain --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template-node-drain.yaml
 	$(KUSTOMIZE) build $(AZURE_TEMPLATES)/v1beta1/cluster-template-upgrades --load-restrictor LoadRestrictionsNone > $(AZURE_TEMPLATES)/v1beta1/cluster-template-upgrades.yaml
@@ -492,7 +488,7 @@ generate-addons: fetch-calico-manifests ## Generate metric-server, calico calico
 	$(KUSTOMIZE) build $(ADDONS_DIR)/calico-dual-stack > $(ADDONS_DIR)/calico-dual-stack.yaml
 
 # When updating this, make sure to also update the Windows image version in templates/addons/windows/calico.
-CALICO_VERSION := v3.23.0
+CALICO_VERSION := v3.24.5
 # Where all downloaded Calico manifests are unpacked and stored.
 CALICO_RELEASES := $(ARTIFACTS)/calico
 # Path to manifests directory in a Calico release archive.
@@ -607,7 +603,7 @@ release-binary: $(RELEASE_DIR) ## Compile and build release binaries.
 		-e GOARCH=$(GOARCH) \
 		-v "$$(pwd):/workspace" \
 		-w /workspace \
-		golang:1.18 \
+		golang:1.19 \
 		go build -a -ldflags '$(LDFLAGS) -extldflags "-static"' \
 		-o $(RELEASE_DIR)/$(notdir $(RELEASE_BINARY))-$(GOOS)-$(GOARCH) $(RELEASE_BINARY)
 
@@ -639,22 +635,26 @@ promote-images: $(KPROMO) ## Promote images.
 
 ##@ Testing:
 .PHONY: test
-test: generate lint go-test ## Run "generate", "lint" and "go-tests" rules.
+test: generate lint go-test-race ## Run "generate", "lint" and "go-test-race" rules.
+
+.PHONY: go-test-race
+go-test-race: TEST_ARGS+= -race
+go-test-race: go-test ## Run go tests with the race detector enabled.
 
 .PHONY: go-test
 go-test: $(SETUP_ENVTEST) ## Run go tests.
 	KUBEBUILDER_ASSETS="$(KUBEBUILDER_ASSETS)" go test ./... $(TEST_ARGS)
 
 .PHONY: test-cover
-test-cover: $(SETUP_ENVTEST) ## Run tests with code coverage and code generate reports.
-	$(MAKE) test TEST_ARGS="$(TEST_ARGS) -coverprofile=coverage.out"
+test-cover: TEST_ARGS+= -coverprofile coverage.out
+test-cover: go-test-race ## Run tests with code coverage and generate reports.
 	go tool cover -func=coverage.out -o coverage.txt
 	go tool cover -html=coverage.out -o coverage.html
 
 .PHONY: test-e2e-run
 test-e2e-run: generate-e2e-templates install-tools ## Run e2e tests.
 	$(ENVSUBST) < $(E2E_CONF_FILE) > $(E2E_CONF_FILE_ENVSUBST) && \
-    $(GINKGO) -v -trace -tags=e2e -focus="$(GINKGO_FOCUS)" -skip="$(GINKGO_SKIP)" -nodes=$(GINKGO_NODES) --noColor=$(GINKGO_NOCOLOR) $(GINKGO_ARGS) ./test/e2e -- \
+    $(GINKGO) -v --trace --timeout=3h --tags=e2e --focus="$(GINKGO_FOCUS)" --skip="$(GINKGO_SKIP)" --nodes=$(GINKGO_NODES) --no-color=$(GINKGO_NOCOLOR) --output-dir="$(ARTIFACTS)" --junit-report="junit.e2e_suite.1.xml" $(GINKGO_ARGS) ./test/e2e -- \
     	-e2e.artifacts-folder="$(ARTIFACTS)" \
     	-e2e.config="$(E2E_CONF_FILE_ENVSUBST)" \
     	-e2e.skip-log-collection="$(SKIP_LOG_COLLECTION)" \
@@ -666,21 +666,18 @@ test-e2e: ## Run "docker-build" and "docker-push" rules then run e2e tests.
 	$(MAKE) docker-build docker-push \
 	test-e2e-run
 
-LOCAL_GINKGO_ARGS ?= -stream --progress
-LOCAL_GINKGO_ARGS += $(GINKGO_ARGS)
 .PHONY: test-e2e-local
 test-e2e-local: ## Run "docker-build" rule then run e2e tests.
 	PULL_POLICY=IfNotPresent MANAGER_IMAGE=$(CONTROLLER_IMG)-$(ARCH):$(TAG) \
 	$(MAKE) docker-build \
-	GINKGO_ARGS='$(LOCAL_GINKGO_ARGS)' \
 	test-e2e-run
 
-CONFORMANCE_FLAVOR ?= 
+CONFORMANCE_FLAVOR ?=
 CONFORMANCE_E2E_ARGS ?= -kubetest.config-file=$(KUBETEST_CONF_PATH)
 CONFORMANCE_E2E_ARGS += $(E2E_ARGS)
 .PHONY: test-conformance
 test-conformance: ## Run conformance test on workload cluster.
-	$(MAKE) test-e2e-local GINKGO_FOCUS="Conformance" E2E_ARGS='$(CONFORMANCE_E2E_ARGS)' GINKGO_ARGS='$(LOCAL_GINKGO_ARGS)' CONFORMANCE_FLAVOR='$(CONFORMANCE_FLAVOR)'
+	$(MAKE) test-e2e-local GINKGO_FOCUS="Conformance" E2E_ARGS='$(CONFORMANCE_E2E_ARGS)' CONFORMANCE_FLAVOR='$(CONFORMANCE_FLAVOR)'
 
 test-conformance-fast: ## Run conformance test on workload cluster using a subset of the conformance suite in parallel.
 	$(MAKE) test-conformance CONFORMANCE_E2E_ARGS="-kubetest.config-file=$(KUBETEST_FAST_CONF_PATH) -kubetest.ginkgo-nodes=5 $(E2E_ARGS)"
@@ -769,7 +766,7 @@ $(GO_APIDIFF): ## Build go-apidiff from tools folder.
 	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/joelanford/go-apidiff $(GO_APIDIFF_BIN) $(GO_APIDIFF_VER)
 
 $(GINKGO): ## Build ginkgo from tools folder.
-	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/onsi/ginkgo/ginkgo $(GINKGO_BIN) $(GINKGO_VER)
+	GOBIN=$(TOOLS_BIN_DIR) $(GO_INSTALL) github.com/onsi/ginkgo/v2/ginkgo $(GINKGO_BIN) $(GINKGO_VER)
 
 $(KUBECTL): ## Build kubectl from tools folder.
 	mkdir -p $(TOOLS_BIN_DIR)

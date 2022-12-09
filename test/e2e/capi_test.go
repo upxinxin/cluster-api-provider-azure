@@ -26,15 +26,16 @@ import (
 	"time"
 
 	"github.com/blang/semver"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/pointer"
 	e2e_namespace "sigs.k8s.io/cluster-api-provider-azure/test/e2e/kubernetes/namespace"
-	clusterctl "sigs.k8s.io/cluster-api/cmd/clusterctl/api/v1alpha3"
+	clusterctlv1 "sigs.k8s.io/cluster-api/cmd/clusterctl/api/v1alpha3"
 	capi_e2e "sigs.k8s.io/cluster-api/test/e2e"
 	"sigs.k8s.io/cluster-api/test/framework"
+	"sigs.k8s.io/cluster-api/test/framework/clusterctl"
 	"sigs.k8s.io/cluster-api/util"
 )
 
@@ -76,7 +77,7 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				Name:      IdentitySecretName,
 				Namespace: identityNamespace.Name,
 				Labels: map[string]string{
-					clusterctl.ClusterctlMoveHierarchyLabelName: "true",
+					clusterctlv1.ClusterctlMoveHierarchyLabelName: "true",
 				},
 			},
 			Type: corev1.SecretTypeOpaque,
@@ -114,6 +115,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				BootstrapClusterProxy: bootstrapClusterProxy,
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -126,6 +130,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				BootstrapClusterProxy: bootstrapClusterProxy,
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -139,6 +146,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 					BootstrapClusterProxy: bootstrapClusterProxy,
 					ArtifactFolder:        artifactFolder,
 					SkipCleanup:           skipCleanup,
+					ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+						WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+					},
 				}
 			})
 		})
@@ -152,18 +162,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				BootstrapClusterProxy: bootstrapClusterProxy,
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
-			}
-		})
-	})
-
-	Context("Should adopt up-to-date control plane Machines without modification", func() {
-		capi_e2e.KCPAdoptionSpec(context.TODO(), func() capi_e2e.KCPAdoptionSpecInput {
-			return capi_e2e.KCPAdoptionSpecInput{
-				E2EConfig:             e2eConfig,
-				ClusterctlConfigPath:  clusterctlConfigPath,
-				BootstrapClusterProxy: bootstrapClusterProxy,
-				ArtifactFolder:        artifactFolder,
-				SkipCleanup:           skipCleanup,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -176,6 +177,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				BootstrapClusterProxy: bootstrapClusterProxy,
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -188,6 +192,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				BootstrapClusterProxy: bootstrapClusterProxy,
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -200,6 +207,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				BootstrapClusterProxy: bootstrapClusterProxy,
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -216,7 +226,7 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 
 					// Unset windows specific variables
 					Expect(os.Unsetenv("WINDOWS_WORKER_MACHINE_COUNT")).To(Succeed())
-					Expect(os.Unsetenv("K8S_FEATURE_GATES")).To(Succeed())
+
 				})
 				capi_e2e.ClusterctlUpgradeSpec(ctx, func() capi_e2e.ClusterctlUpgradeSpecInput {
 					return capi_e2e.ClusterctlUpgradeSpecInput{
@@ -226,6 +236,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 						ArtifactFolder:        artifactFolder,
 						SkipCleanup:           skipCleanup,
 						PreInit:               getPreInitFunc(ctx),
+						ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+							WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+						},
 					}
 				})
 			})
@@ -241,6 +254,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				ArtifactFolder:        artifactFolder,
 				SkipCleanup:           skipCleanup,
 				SkipConformanceTests:  true,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -256,6 +272,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				WorkerMachineCount:       pointer.Int64(0),
 				SkipCleanup:              skipCleanup,
 				SkipConformanceTests:     true,
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -272,6 +291,9 @@ var _ = Describe("Running the Cluster API E2E tests", func() {
 				SkipCleanup:              skipCleanup,
 				SkipConformanceTests:     true,
 				Flavor:                   pointer.String("kcp-scale-in"),
+				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
+					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
+				},
 			}
 		})
 	})
@@ -285,7 +307,7 @@ func getPreInitFunc(ctx context.Context) func(proxy framework.ClusterProxy) {
 				Name:      IdentitySecretName,
 				Namespace: "default",
 				Labels: map[string]string{
-					clusterctl.ClusterctlMoveHierarchyLabelName: "true",
+					clusterctlv1.ClusterctlMoveHierarchyLabelName: "true",
 				},
 			},
 			Type: corev1.SecretTypeOpaque,

@@ -7,13 +7,17 @@ run:
 linters:
   disable-all: true
   enable:
+    - asasalint
     - asciicheck
     - bodyclose
     - containedctx
+    - decorder
     - depguard
     - dogsled
     - errcheck
+    - errchkjson
     - errorlint
+    - execinquery
     - exportloopref
     - gci
     - goconst
@@ -33,8 +37,10 @@ linters:
     - nilerr
     - noctx
     - nolintlint
+    - nosprintfhostport
     - prealloc
     - predeclared
+    - reassign
     - revive
     - rowserrcheck
     - staticcheck
@@ -44,6 +50,7 @@ linters:
     - unconvert
     - unparam
     - unused
+    - usestdlibvars
     - whitespace
   # Run with --fast=false for more extensive checks
   fast: true
@@ -94,6 +101,8 @@ linters-settings:
         alias: infrav1alpha4exp
       - pkg: sigs.k8s.io/cluster-api-provider-azure/exp/api/v1beta1
         alias: infrav1exp
+      - pkg: sigs.k8s.io/cluster-api-provider-azure/util/webhook
+        alias: webhookutils
   gocritic:
     enabled-tags:
       - "experimental"
@@ -115,11 +124,11 @@ linters-settings:
         arguments:
           - disableStutteringCheck
   staticcheck:
-    go: "1.18"
+    go: "1.19"
   stylecheck:
-    go: "1.18"
+    go: "1.19"
   unused:
-    go: "1.18"
+    go: "1.19"
 
 issues:
   exclude-rules:
@@ -137,7 +146,11 @@ issues:
         - prealloc
     - path: ^test/
       text: exported (.+) should have comment( \(or a comment on this block\))? or be unexported
-    - source: \"github.com/onsi/(ginkgo|gomega)\"
+    # Need to use the deprecated module "github.com/Azure/azure-sdk-for-go/services" till issue #2670 is addressed.
+    - linters:
+      - staticcheck
+      text: "github.com/Azure/azure-sdk-for-go/services/.* is deprecated"
+    - source: \"github.com/onsi/(ginkgo/v2|gomega)\"
       text: "should not use dot imports"
   include:
   - EXC0012  # revive: check for comments

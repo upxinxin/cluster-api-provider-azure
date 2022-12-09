@@ -22,16 +22,18 @@ package e2e
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/services/containerservice/mgmt/2020-02-01/containerservice"
 	"github.com/Azure/azure-sdk-for-go/services/network/mgmt/2021-08-01/network"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/go-autorest/autorest/to"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/pkg/errors"
 	"golang.org/x/mod/semver"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	infrav1 "sigs.k8s.io/cluster-api-provider-azure/api/v1beta1"
@@ -220,9 +222,9 @@ func WaitForAKSSystemNodePoolMachinesToExist(ctx context.Context, input WaitForC
 	}, intervals...).Should(Equal(true), "System machine pools not detected")
 }
 
-// GetAKSKubernetesVersion gets the kubernetes version for AKS clusters.
-func GetAKSKubernetesVersion(ctx context.Context, e2eConfig *clusterctl.E2EConfig) (string, error) {
-	e2eAKSVersion := e2eConfig.GetVariable(AKSKubernetesVersion)
+// GetAKSKubernetesVersion gets the kubernetes version for AKS clusters as specified by the environment variable defined by versionVar.
+func GetAKSKubernetesVersion(ctx context.Context, e2eConfig *clusterctl.E2EConfig, versionVar string) (string, error) {
+	e2eAKSVersion := e2eConfig.GetVariable(versionVar)
 
 	location := e2eConfig.GetVariable(AzureLocation)
 
@@ -230,10 +232,14 @@ func GetAKSKubernetesVersion(ctx context.Context, e2eConfig *clusterctl.E2EConfi
 	Expect(err).NotTo(HaveOccurred())
 	subscriptionID := settings.GetSubscriptionID()
 	var maxVersion string
-	if e2eAKSVersion == "latest" {
+	switch e2eAKSVersion {
+	case "latest":
 		maxVersion, err = GetLatestStableAKSKubernetesVersion(ctx, subscriptionID, location)
 		Expect(err).NotTo(HaveOccurred())
-	} else {
+	case "latest-1":
+		maxVersion, err = GetNextLatestStableAKSKubernetesVersion(ctx, subscriptionID, location)
+		Expect(err).NotTo(HaveOccurred())
+	default:
 		maxVersion, err = GetWorkingAKSKubernetesVersion(ctx, subscriptionID, location, e2eAKSVersion)
 		Expect(err).NotTo(HaveOccurred())
 	}
@@ -316,6 +322,16 @@ func GetWorkingAKSKubernetesVersion(ctx context.Context, subscriptionID, locatio
 
 // GetLatestStableAKSKubernetesVersion returns the latest stable available Kubernetes version of AKS.
 func GetLatestStableAKSKubernetesVersion(ctx context.Context, subscriptionID, location string) (string, error) {
+	return getLatestStableAKSKubernetesVersionOffset(ctx, subscriptionID, location, 0)
+}
+
+// GetNextLatestStableAKSKubernetesVersion returns the stable available
+// Kubernetes version of AKS immediately preceding the latest.
+func GetNextLatestStableAKSKubernetesVersion(ctx context.Context, subscriptionID, location string) (string, error) {
+	return getLatestStableAKSKubernetesVersionOffset(ctx, subscriptionID, location, 1)
+}
+
+func getLatestStableAKSKubernetesVersionOffset(ctx context.Context, subscriptionID, location string, offset int) (string, error) {
 	settings, err := auth.GetSettingsFromEnvironment()
 	if err != nil {
 		return "", errors.Wrap(err, "failed to get settings from environment")
@@ -345,7 +361,7 @@ func GetLatestStableAKSKubernetesVersion(ctx context.Context, subscriptionID, lo
 		orchestratorversions = append(orchestratorversions, orchVersion)
 	}
 	semver.Sort(orchestratorversions)
-	maxVersion = orchestratorversions[len(orchestratorversions)-1]
+	maxVersion = orchestratorversions[len(orchestratorversions)-1-offset]
 	if semver.IsValid(maxVersion) {
 		foundWorkingVersion = true
 	}
@@ -353,6 +369,187 @@ func GetLatestStableAKSKubernetesVersion(ctx context.Context, subscriptionID, lo
 		return "", errors.New("latest stable AKS version not found")
 	}
 	return maxVersion, nil
+}
+
+type AKSMachinePoolSpecInput struct {
+	Cluster       *clusterv1.Cluster
+	MachinePools  []*expv1.MachinePool
+	WaitIntervals []interface{}
+}
+
+func AKSMachinePoolSpec(ctx context.Context, inputGetter func() AKSMachinePoolSpecInput) {
+	input := inputGetter()
+	var wg sync.WaitGroup
+
+	originalReplicas := map[types.NamespacedName]int32{}
+	for _, mp := range input.MachinePools {
+		originalReplicas[client.ObjectKeyFromObject(mp)] = to.Int32(mp.Spec.Replicas)
+	}
+
+	By("Scaling the machine pools out")
+	for _, mp := range input.MachinePools {
+		wg.Add(1)
+		go func(mp *expv1.MachinePool) {
+			defer GinkgoRecover()
+			defer wg.Done()
+			framework.ScaleMachinePoolAndWait(ctx, framework.ScaleMachinePoolAndWaitInput{
+				ClusterProxy:              bootstrapClusterProxy,
+				Cluster:                   input.Cluster,
+				Replicas:                  to.Int32(mp.Spec.Replicas) + 1,
+				MachinePools:              []*expv1.MachinePool{mp},
+				WaitForMachinePoolToScale: input.WaitIntervals,
+			})
+		}(mp)
+	}
+	wg.Wait()
+
+	By("Scaling the machine pools in")
+	for _, mp := range input.MachinePools {
+		wg.Add(1)
+		go func(mp *expv1.MachinePool) {
+			defer GinkgoRecover()
+			defer wg.Done()
+			framework.ScaleMachinePoolAndWait(ctx, framework.ScaleMachinePoolAndWaitInput{
+				ClusterProxy:              bootstrapClusterProxy,
+				Cluster:                   input.Cluster,
+				Replicas:                  to.Int32(mp.Spec.Replicas) - 1,
+				MachinePools:              []*expv1.MachinePool{mp},
+				WaitForMachinePoolToScale: input.WaitIntervals,
+			})
+		}(mp)
+	}
+	wg.Wait()
+
+	By("Scaling the machine pools to zero")
+	// System node pools cannot be scaled to 0, so only include user node pools.
+	var machinePoolsToScale []*expv1.MachinePool
+	for _, mp := range input.MachinePools {
+		ammp := &infrav1exp.AzureManagedMachinePool{}
+		err := bootstrapClusterProxy.GetClient().Get(ctx, types.NamespacedName{
+			Namespace: mp.Spec.Template.Spec.InfrastructureRef.Namespace,
+			Name:      mp.Spec.Template.Spec.InfrastructureRef.Name,
+		}, ammp)
+		Expect(err).NotTo(HaveOccurred())
+
+		if ammp.Spec.Mode != string(infrav1exp.NodePoolModeSystem) {
+			machinePoolsToScale = append(machinePoolsToScale, mp)
+		}
+	}
+
+	framework.ScaleMachinePoolAndWait(ctx, framework.ScaleMachinePoolAndWaitInput{
+		ClusterProxy:              bootstrapClusterProxy,
+		Cluster:                   input.Cluster,
+		Replicas:                  0,
+		MachinePools:              machinePoolsToScale,
+		WaitForMachinePoolToScale: input.WaitIntervals,
+	})
+
+	By("Restoring initial replica count")
+	for _, mp := range input.MachinePools {
+		wg.Add(1)
+		go func(mp *expv1.MachinePool) {
+			defer GinkgoRecover()
+			defer wg.Done()
+			framework.ScaleMachinePoolAndWait(ctx, framework.ScaleMachinePoolAndWaitInput{
+				ClusterProxy:              bootstrapClusterProxy,
+				Cluster:                   input.Cluster,
+				Replicas:                  originalReplicas[client.ObjectKeyFromObject(mp)],
+				MachinePools:              []*expv1.MachinePool{mp},
+				WaitForMachinePoolToScale: input.WaitIntervals,
+			})
+		}(mp)
+	}
+	wg.Wait()
+}
+
+type AKSAutoscaleSpecInput struct {
+	Cluster       *clusterv1.Cluster
+	MachinePool   *expv1.MachinePool
+	WaitIntervals []interface{}
+}
+
+func AKSAutoscaleSpec(ctx context.Context, inputGetter func() AKSAutoscaleSpecInput) {
+	input := inputGetter()
+
+	settings, err := auth.GetSettingsFromEnvironment()
+	Expect(err).NotTo(HaveOccurred())
+	subscriptionID := settings.GetSubscriptionID()
+	auth, err := settings.GetAuthorizer()
+	Expect(err).NotTo(HaveOccurred())
+	agentpoolClient := containerservice.NewAgentPoolsClient(subscriptionID)
+	agentpoolClient.Authorizer = auth
+	mgmtClient := bootstrapClusterProxy.GetClient()
+	Expect(mgmtClient).NotTo(BeNil())
+
+	amcp := &infrav1exp.AzureManagedControlPlane{}
+	err = mgmtClient.Get(ctx, types.NamespacedName{
+		Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace,
+		Name:      input.Cluster.Spec.ControlPlaneRef.Name,
+	}, amcp)
+	Expect(err).NotTo(HaveOccurred())
+
+	ammp := &infrav1exp.AzureManagedMachinePool{}
+	err = mgmtClient.Get(ctx, client.ObjectKeyFromObject(input.MachinePool), ammp)
+	Expect(err).NotTo(HaveOccurred())
+
+	resourceGroupName := amcp.Spec.ResourceGroupName
+	managedClusterName := amcp.Name
+	agentPoolName := *ammp.Spec.Name
+	getAgentPool := func() (containerservice.AgentPool, error) {
+		return agentpoolClient.Get(ctx, resourceGroupName, managedClusterName, agentPoolName)
+	}
+
+	toggleAutoscaling := func() {
+		err = mgmtClient.Get(ctx, client.ObjectKeyFromObject(ammp), ammp)
+		Expect(err).NotTo(HaveOccurred())
+
+		enabled := ammp.Spec.Scaling != nil
+		var enabling string
+		if enabled {
+			enabling = "Disabling"
+			ammp.Spec.Scaling = nil
+		} else {
+			enabling = "Enabling"
+			ammp.Spec.Scaling = &infrav1exp.ManagedMachinePoolScaling{
+				MinSize: to.Int32Ptr(1),
+				MaxSize: to.Int32Ptr(2),
+			}
+		}
+		By(enabling + " autoscaling")
+		err = mgmtClient.Update(ctx, ammp)
+		Expect(err).NotTo(HaveOccurred())
+	}
+
+	validateUntoggled := validateAKSAutoscaleDisabled
+	validateToggled := validateAKSAutoscaleEnabled
+	autoscalingInitiallyEnabled := ammp.Spec.Scaling != nil
+	if autoscalingInitiallyEnabled {
+		validateToggled, validateUntoggled = validateUntoggled, validateToggled
+	}
+
+	validateUntoggled(getAgentPool, inputGetter)
+	toggleAutoscaling()
+	validateToggled(getAgentPool, inputGetter)
+	toggleAutoscaling()
+	validateUntoggled(getAgentPool, inputGetter)
+}
+
+func validateAKSAutoscaleDisabled(agentPoolGetter func() (containerservice.AgentPool, error), inputGetter func() AKSAutoscaleSpecInput) {
+	By("Validating autoscaler disabled")
+	Eventually(func(g Gomega) {
+		agentpool, err := agentPoolGetter()
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(to.Bool(agentpool.EnableAutoScaling)).To(BeFalse())
+	}, inputGetter().WaitIntervals...).Should(Succeed())
+}
+
+func validateAKSAutoscaleEnabled(agentPoolGetter func() (containerservice.AgentPool, error), inputGetter func() AKSAutoscaleSpecInput) {
+	By("Validating autoscaler enabled")
+	Eventually(func(g Gomega) {
+		agentpool, err := agentPoolGetter()
+		g.Expect(err).NotTo(HaveOccurred())
+		g.Expect(to.Bool(agentpool.EnableAutoScaling)).To(BeTrue())
+	}, inputGetter().WaitIntervals...).Should(Succeed())
 }
 
 type AKSPublicIPPrefixSpecInput struct {
@@ -396,9 +593,8 @@ func AKSPublicIPPrefixSpec(ctx context.Context, inputGetter func() AKSPublicIPPr
 	var publicIPPrefix network.PublicIPPrefix
 	Eventually(func() error {
 		publicIPPrefix, err = publicIPPrefixFuture.Result(publicIPPrefixClient)
-		Logf("Got err %v", err)
 		return err
-	}, input.WaitIntervals...).Should(Succeed())
+	}, input.WaitIntervals...).Should(Succeed(), "failed to create public IP prefix")
 
 	By("Creating node pool with 3 nodes")
 	infraMachinePool := &infrav1exp.AzureManagedMachinePool{
@@ -443,6 +639,22 @@ func AKSPublicIPPrefixSpec(ctx context.Context, inputGetter func() AKSPublicIPPr
 	err = mgmtClient.Create(ctx, machinePool)
 	Expect(err).NotTo(HaveOccurred())
 
+	defer func() {
+		By("Deleting the node pool")
+		err := mgmtClient.Delete(ctx, machinePool)
+		Expect(err).NotTo(HaveOccurred())
+
+		Eventually(func() bool {
+			err := mgmtClient.Get(ctx, client.ObjectKeyFromObject(machinePool), &expv1.MachinePool{})
+			return apierrors.IsNotFound(err)
+		}, input.WaitIntervals...).Should(BeTrue(), "Deleted MachinePool %s/%s still exists", machinePool.Namespace, machinePool.Name)
+
+		Eventually(func() bool {
+			err := mgmtClient.Get(ctx, client.ObjectKeyFromObject(infraMachinePool), &infrav1exp.AzureManagedMachinePool{})
+			return apierrors.IsNotFound(err)
+		}, input.WaitIntervals...).Should(BeTrue(), "Deleted AzureManagedMachinePool %s/%s still exists", infraMachinePool.Namespace, infraMachinePool.Name)
+	}()
+
 	By("Verifying the AzureManagedMachinePool converges to a failed ready status")
 	Eventually(func(g Gomega) {
 		infraMachinePool := &infrav1exp.AzureManagedMachinePool{}
@@ -469,4 +681,56 @@ func AKSPublicIPPrefixSpec(ctx context.Context, inputGetter func() AKSPublicIPPr
 		g.Expect(err).NotTo(HaveOccurred())
 		g.Expect(conditions.IsTrue(infraMachinePool, infrav1.AgentPoolsReadyCondition)).To(BeTrue())
 	}, input.WaitIntervals...).Should(Succeed())
+}
+
+type AKSUpgradeSpecInput struct {
+	Cluster                    *clusterv1.Cluster
+	MachinePools               []*expv1.MachinePool
+	KubernetesVersionUpgradeTo string
+	WaitForControlPlane        []interface{}
+	WaitForMachinePools        []interface{}
+}
+
+func AKSUpgradeSpec(ctx context.Context, inputGetter func() AKSUpgradeSpecInput) {
+	input := inputGetter()
+
+	settings, err := auth.GetSettingsFromEnvironment()
+	Expect(err).NotTo(HaveOccurred())
+	subscriptionID := settings.GetSubscriptionID()
+	auth, err := settings.GetAuthorizer()
+	Expect(err).NotTo(HaveOccurred())
+
+	managedClustersClient := containerservice.NewManagedClustersClient(subscriptionID)
+	managedClustersClient.Authorizer = auth
+
+	mgmtClient := bootstrapClusterProxy.GetClient()
+	Expect(mgmtClient).NotTo(BeNil())
+
+	infraControlPlane := &infrav1exp.AzureManagedControlPlane{}
+	err = mgmtClient.Get(ctx, client.ObjectKey{Namespace: input.Cluster.Spec.ControlPlaneRef.Namespace, Name: input.Cluster.Spec.ControlPlaneRef.Name}, infraControlPlane)
+	Expect(err).NotTo(HaveOccurred())
+
+	By("Upgrading the control plane")
+	infraControlPlane.Spec.Version = input.KubernetesVersionUpgradeTo
+	Expect(mgmtClient.Update(ctx, infraControlPlane)).To(Succeed())
+
+	Eventually(func() (string, error) {
+		aksCluster, err := managedClustersClient.Get(ctx, infraControlPlane.Spec.ResourceGroupName, infraControlPlane.Name)
+		if err != nil {
+			return "", err
+		}
+		if aksCluster.ManagedClusterProperties == nil || aksCluster.ManagedClusterProperties.KubernetesVersion == nil {
+			return "", errors.New("Kubernetes version unknown")
+		}
+		return "v" + *aksCluster.KubernetesVersion, nil
+	}, input.WaitForControlPlane...).Should(Equal(input.KubernetesVersionUpgradeTo))
+
+	By("Upgrading the machinepool instances")
+	framework.UpgradeMachinePoolAndWait(ctx, framework.UpgradeMachinePoolAndWaitInput{
+		ClusterProxy:                   bootstrapClusterProxy,
+		Cluster:                        input.Cluster,
+		UpgradeVersion:                 input.KubernetesVersionUpgradeTo,
+		WaitForMachinePoolToBeUpgraded: input.WaitForMachinePools,
+		MachinePools:                   input.MachinePools,
+	})
 }

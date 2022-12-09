@@ -1,10 +1,12 @@
 # Managed Clusters (AKS)
+
 - **Feature status:** Experimental
 - **Feature gate:** AKS=true,MachinePool=true
 
 Cluster API Provider Azure (CAPZ) experimentally supports managing Azure
 Kubernetes Service (AKS) clusters. CAPZ implements this with three
 custom resources:
+
 - AzureManagedControlPlane
 - AzureManagedCluster
 - AzureManagedMachinePool
@@ -13,8 +15,8 @@ The combination of AzureManagedControlPlane/AzureManagedCluster
 corresponds to provisioning an AKS cluster. AzureManagedMachinePool
 corresponds one-to-one with AKS node pools. This also means that
 creating an AzureManagedControlPlane requires at least one AzureManagedMachinePool
-with `spec.mode` `System`, since AKS expects at least one system pool at creation 
-time. For more documentation on system node pool refer [AKS Docs](https://docs.microsoft.com/en-us/azure/aks/use-system-pools) 
+with `spec.mode` `System`, since AKS expects at least one system pool at creation
+time. For more documentation on system node pool refer [AKS Docs](https://docs.microsoft.com/en-us/azure/aks/use-system-pools)
 
 ## Deploy with clusterctl
 
@@ -26,7 +28,7 @@ executing clusterctl.
 # Kubernetes values
 export CLUSTER_NAME="my-cluster"
 export WORKER_MACHINE_COUNT=2
-export KUBERNETES_VERSION="v1.19.6"
+export KUBERNETES_VERSION="v1.24.6"
 
 # Azure values
 export AZURE_LOCATION="southcentralus"
@@ -34,17 +36,24 @@ export AZURE_RESOURCE_GROUP="${CLUSTER_NAME}"
 # set AZURE_SUBSCRIPTION_ID to the GUID of your subscription
 # this example uses an sdk authentication file and parses the subscriptionId with jq
 # this file may be created using
-#
-# `az ad sp create-for-rbac --role Contributor --scopes="/subscriptions/${AZURE_SUBSCRIPTION_ID}" --sdk-auth > sp.json`
-#
-# when logged in with a service principal, it's also available using
-#
-# `az account show --sdk-auth`
-#
-# Otherwise, you can set this value manually.
-#
-export AZURE_SUBSCRIPTION_ID="$(cat ~/sp.json | jq -r .subscriptionId | tr -d '\n')"
+```
+
+Create a new service principal and save to a local file:
+
+```bash
+az ad sp create-for-rbac --role Contributor --scopes="/subscriptions/${AZURE_SUBSCRIPTION_ID}" --sdk-auth > sp.json
+```
+
+export the following variables in your current shell.
+
+```bash
+export AZURE_SUBSCRIPTION_ID="$(cat sp.json | jq -r .subscriptionId | tr -d '\n')"
+export AZURE_CLIENT_SECRET="$(cat sp.json | jq -r .clientSecret | tr -d '\n')"
+export AZURE_CLIENT_ID="$(cat sp.json | jq -r .clientId | tr -d '\n')"
 export AZURE_NODE_MACHINE_TYPE="Standard_D2s_v3"
+export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"
+export AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE="default"
+export CLUSTER_IDENTITY_NAME="cluster-identity"
 ```
 
 Managed clusters also require the following feature flags set as environment variables:
@@ -54,7 +63,19 @@ export EXP_MACHINE_POOL=true
 export EXP_AKS=true
 ```
 
-Execute clusterctl to template the resources, then apply to a management cluster:
+Create a local kind cluster to run the management cluster components:
+
+```bash
+kind create cluster
+```
+
+Create an identity secret on the management cluster:
+
+```bash
+kubectl create secret generic "${AZURE_CLUSTER_IDENTITY_SECRET_NAME}" --from-literal=clientSecret="${AZURE_CLIENT_SECRET}"
+```
+
+Execute clusterctl to template the resources, then apply to your kind management cluster:
 
 ```bash
 clusterctl init --infrastructure azure
@@ -174,8 +195,7 @@ should be fairly clear from context.
 | networkPlugin             | azure, kubenet                |
 | networkPolicy             | azure, calico                 |
 
-
-### Use an existing Virtual Network to provision an AKS cluster.
+### Use an existing Virtual Network to provision an AKS cluster
 
 If you'd like to deploy your AKS cluster in an existing Virtual Network, but create the cluster itself in a different resource group, you can configure the AzureManagedControlPlane resource with a reference to the existing Virtual Network and subnet. For example:
 
@@ -196,8 +216,9 @@ spec:
     resourceGroup: test-rg
     subnet:
       cidrBlock: 10.0.2.0/24
-      name: test-subnet  
+      name: test-subnet
 ```
+
 ### Multitenancy
 
 Multitenancy for managed clusters can be configured by using `aks-multi-tenancy` flavor. The steps for creating an azure managed identity and mapping it to an `AzureClusterIdentity` are similar to the ones described [here](https://capz.sigs.k8s.io/topics/multitenancy.html).
@@ -246,7 +267,7 @@ spec:
 ### AKS Managed Azure Active Directory Integration
 
 Azure Kubernetes Service can be configured to use Azure Active Directory for user authentication.
-AAD for managed clusters can be configured by enabling the `managed` spec in `AzureManagedControlPlane` to `true` 
+AAD for managed clusters can be configured by enabling the `managed` spec in `AzureManagedControlPlane` to `true`
 and by providing Azure AD GroupObjectId in `AdminGroupObjectIDs` array. The group is needed as admin group for
 the cluster to grant cluster admin permissions. You can use an existing Azure AD group, or create a new one. For more documentation about AAD refer [AKS AAD Docs](https://docs.microsoft.com/en-us/azure/aks/managed-aad)
 
@@ -271,7 +292,7 @@ spec:
 
 Azure Kubernetes Service can be configured to use cluster autoscaler by specifying `scaling` spec in the `AzureManagedMachinePool`
 
-```
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -291,7 +312,7 @@ You can configure the `NodeLabels` value for each AKS node pool (`AzureManagedMa
 
 Below an example `nodeLabels` configuration is assigned to `agentpool0`, specifying that each node in the pool will add a label `dedicated : kafka`
 
-```
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -301,7 +322,7 @@ spec:
   osDiskSizeGB: 512
   sku: Standard_D2s_v3
   nodeLabels:
-    dedicated: kafka 
+    dedicated: kafka
 ```
 
 ### AKS Node Pool MaxPods configuration
@@ -310,7 +331,7 @@ You can configure the `MaxPods` value for each AKS node pool (`AzureManagedMachi
 
 Below an example `maxPods` configuration is assigned to `agentpool0`, specifying that each node in the pool will enforce a maximum of 24 scheduled pods:
 
-```
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -328,7 +349,7 @@ You can configure the `OsDiskType` value for each AKS node pool (`AzureManagedMa
 
 Below an example `osDiskType` configuration is assigned to `agentpool0`, specifying that each node in the pool will use a local, ephemeral OS disk for faster disk I/O at the expense of possible data loss:
 
-```
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -346,7 +367,7 @@ You can configure the `Taints` value for each AKS node pool (`AzureManagedMachin
 
 Below is an example of `taints` configuration for the `agentpool0`:
 
-```
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -362,11 +383,12 @@ spec:
 ```
 
 ### AKS Node Pool OS Type
+
 If your cluster uses the Azure network plugin (`AzureManagedControlPlane.networkPlugin`) you can set the operating system
 for your User nodepools. The `osType` field is immutable and only can be set at creation time, it defaults to `Linux` and
 can be either `Linux` or `Windows`.
 
-```
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -379,16 +401,70 @@ spec:
   osType: Windows
 ```
 
+### AKS Node Pool Kubelet Custom Configuration
+
+Reference:
+
+- https://learn.microsoft.com/en-us/azure/aks/custom-node-configuration
+
+When you create your node pool (`AzureManagedMachinePool`), you may specify various kubelet configuration which tunes the kubelet runtime on all nodes in that pool. For example:
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureManagedMachinePool
+metadata:
+  name: pool1
+spec:
+  mode: User
+  kubeletConfig:
+    cpuManagerPolicy: "static"
+    cpuCfsQuota: true
+    cpuCfsQuotaPeriod: "110ms"
+    imageGcHighThreshold: 70
+    imageGcLowThreshold: 50
+    topologyManagerPolicy: "best-effort"
+    allowedUnsafeSysctls:
+      - "net.*"
+      - "kernel.msg*"
+    failSwapOn: false
+    containerLogMaxSizeMB: 500
+    containerLogMaxFiles: 50
+    podMaxPids: 2048
+```
+
+Below are the full set of AKS-supported kubeletConfig configurations. All properties are children of the `spec.kubeletConfig` configuration in an `AzureManagedMachinePool` resource:
+
+| Configuration               | Property Type     | Allowed Value(s)                                                                         |
+|-----------------------------|-------------------|------------------------------------------------------------------------------------------|
+| `cpuManagerPolicy`          | string            | `"none"`, `"static"`                                                                     |
+| `cpuCfsQuota`               | boolean           | `true`, `false`                                                                          |
+| `cpuCfsQuotaPeriod`         | string            | value in milliseconds, must end in `"ms"`, e.g., `"100ms"`                               |
+| `failSwapOn`                | boolean           | `true`, `false`                                                                          |
+| `imageGcHighThreshold`      | integer           | integer values in the range 0-100 (inclusive)                                            |
+| `imageGcLowThreshold`       | integer           | integer values in the range 0-100 (inclusive), must be lower than `imageGcHighThreshold` |
+| `topologyManagerPolicy`     | string            | `"none"`, `"best-effort"`, `"restricted"`, `"single-numa-node"`                          |
+| `allowedUnsafeSysctls`      | string            | `"kernel.shm*"`, `"kernel.msg*"`, `"kernel.sem"`, `"fs.mqueue.*"`, `"net.*"`             |
+| `containerLogMaxSizeMB`     | integer           | any integer                                                                              |
+| `containerLogMaxFiles`      | integer           | any integer >= `2`                                                                       |
+| `podMaxPids`                | integer           | any integer >= `-1`, note that this must not be higher than kernel PID limit             |
+
+For more detailed information on the behaviors of the above configurations, see [the official Kubernetes documentation](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/). Note that not all possible Kubernetes Kubelet Configuration options are available to use on your AKS node pool, only those specified above.
+
+CAPZ will not assign any default values for any excluded configuration properties. It is also not required to include the `spec.kubeletConfig` configuration in an `AzureManagedMachinePool` resource spec. In cases where no CAPZ configuration is declared, AKS will apply its own opinionated default configurations when the node pool is created.
+
+Note: these configurations can not be updated after a node pool is created.
 
 ### Enable AKS features with custom headers (--aks-custom-headers)
-To enable some AKS cluster / node pool features you need to pass special headers to the cluster / node pool create request. 
+
+To enable some AKS cluster / node pool features you need to pass special headers to the cluster / node pool create request.
 For example, to [add a node pool for GPU nodes](https://docs.microsoft.com/en-us/azure/aks/gpu-cluster#add-a-node-pool-for-gpu-nodes),
-you need to pass a custom header `UseGPUDedicatedVHD=true` (with `--aks-custom-headers UseGPUDedicatedVHD=true` argument). 
-To do this with CAPZ, you need to add special annotations to AzureManagedCluster (for cluster 
-features) or AzureManagedMachinePool (for node pool features). These annotations should have a prefix `infrastructure.cluster.x-k8s.io/custom-header-` followed 
-by the name of the AKS feature. For example, to create a node pool with GPU support, you would add the following 
+you need to pass a custom header `UseGPUDedicatedVHD=true` (with `--aks-custom-headers UseGPUDedicatedVHD=true` argument).
+To do this with CAPZ, you need to add special annotations to AzureManagedCluster (for cluster
+features) or AzureManagedMachinePool (for node pool features). These annotations should have a prefix `infrastructure.cluster.x-k8s.io/custom-header-` followed
+by the name of the AKS feature. For example, to create a node pool with GPU support, you would add the following
 annotation to AzureManagedMachinePool:
-```
+
+```yaml
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedMachinePool
 metadata:
@@ -403,6 +479,7 @@ spec:
 ### Use a public Standard Load Balancer
 
 A public Load Balancer when integrated with AKS serves two purposes:
+
 - To provide outbound connections to the cluster nodes inside the AKS virtual network. It achieves this objective by translating the nodes private IP address to a public IP address that is part of its Outbound Pool.
 - To provide access to applications via Kubernetes services of type LoadBalancer. With it, you can easily scale your applications and create highly available services.
 
@@ -456,8 +533,8 @@ spec:
 
 ## Immutable fields for Managed Clusters (AKS)
 
-Some fields from the family of Managed Clusters CRD are immutable. Which means 
-those can only be set during the creation time. 
+Some fields from the family of Managed Clusters CRD are immutable. Which means
+those can only be set during the creation time.
 
 Following is the list of immutable fields for managed clusters:
 
@@ -484,6 +561,7 @@ Following is the list of immutable fields for managed clusters:
 | AzureManagedMachinePool   | .spec.osType                 |                           |
 | AzureManagedMachinePool   | .spec.enableNodePublicIP     |                           |
 | AzureManagedMachinePool   | .spec.nodePublicIPPrefixID   |                           |
+| AzureManagedMachinePool   | .spec.kubeletConfig          |                           |
 
 ## Features
 
@@ -494,9 +572,9 @@ and need an additional feature, please open a pull request or issue with
 details. We're happy to help!
 
 Current limitations
+
 - DNS IP is hardcoded to the x.x.x.10 inside the service CIDR.
-  - primarily due to lack of validation, see
-    https://github.com/kubernetes-sigs/cluster-api-provider-azure/issues/612
+  - primarily due to lack of validation, see [#612](https://github.com/kubernetes-sigs/cluster-api-provider-azure/issues/612)
 - Only supports system managed identities.
   - We would like to support user managed identities where appropriate.
 - Only supports Standard load balancer (SLB).
@@ -512,7 +590,7 @@ If a user tries to delete the MachinePool which refers to the last system node p
 Here is an Example:
 
 ```yaml
-# MachinePool deleted 
+# MachinePool deleted
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachinePool
 metadata:
@@ -558,18 +636,18 @@ metadata:
   labels:
     cluster.x-k8s.io/cluster-name: capz-managed-aks
   name: agentpool2    # change the name of the machinepool
-  namespace: default 
+  namespace: default
   ownerReferences:
   - apiVersion: cluster.x-k8s.io/v1beta1
     kind: Cluster
     name: capz-managed-aks
-    uid: 152ecf45-0a02-4635-987c-1ebb89055fa2   
+    uid: 152ecf45-0a02-4635-987c-1ebb89055fa2
   # uid: ae4a235a-f0fa-4252-928a-0e3b4c61dbea     # remove the uid set for machinepool
 spec:
   clusterName: capz-managed-aks
   minReadySeconds: 0
   providerIDList:
-  - azure:///subscriptions/9107f2fb-e486-a434-a948-52e2929b6f18/resourceGroups/MC_rg_capz-managed-aks_eastus/providers/Microsoft.Compute/virtualMachineScaleSets/aks-agentpool0-10226072-vmss/virtualMachines/0  
+  - azure:///subscriptions/9107f2fb-e486-a434-a948-52e2929b6f18/resourceGroups/MC_rg_capz-managed-aks_eastus/providers/Microsoft.Compute/virtualMachineScaleSets/aks-agentpool0-10226072-vmss/virtualMachines/0
   replicas: 1
   template:
     metadata: {}

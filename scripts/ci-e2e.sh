@@ -57,8 +57,8 @@ export GINKGO_NODES=10
 export AZURE_LOCATION="${AZURE_LOCATION:-$(capz::util::get_random_region)}"
 export AZURE_LOCATION_GPU="${AZURE_LOCATION_GPU:-$(capz::util::get_random_region_gpu)}"
 export AZURE_LOCATION_EDGEZONE="${AZURE_LOCATION_EDGE:-$(capz::util::get_random_region_edgezone)}"
-export AZURE_CONTROL_PLANE_MACHINE_TYPE="${AZURE_CONTROL_PLANE_MACHINE_TYPE:-"Standard_D2s_v3"}"
-export AZURE_NODE_MACHINE_TYPE="${AZURE_NODE_MACHINE_TYPE:-"Standard_D2s_v3"}"
+export AZURE_CONTROL_PLANE_MACHINE_TYPE="${AZURE_CONTROL_PLANE_MACHINE_TYPE:-"Standard_B2s"}"
+export AZURE_NODE_MACHINE_TYPE="${AZURE_NODE_MACHINE_TYPE:-"Standard_B2s"}"
 export KIND_EXPERIMENTAL_DOCKER_NETWORK="bridge"
 
 capz::util::generate_ssh_key

@@ -22,6 +22,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"sigs.k8s.io/cluster-api-provider-azure/feature"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 )
@@ -46,6 +47,14 @@ func (c *AzureCluster) Default() {
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (c *AzureCluster) ValidateCreate() error {
+	// NOTE: AzureCluster with ExtendedLocation field is behind EdgeZone feature gate flag; the web hook
+	// must prevent creating new objects in case the feature flag is disabled.
+	if !feature.Gates.Enabled(feature.EdgeZone) && c.Spec.ExtendedLocation != nil {
+		return field.Forbidden(
+			field.NewPath("spec"),
+			"can be set only if the EdgeZone feature flag is enabled",
+		)
+	}
 	return c.validateCluster(nil)
 }
 

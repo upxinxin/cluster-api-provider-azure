@@ -100,5 +100,4 @@ func AzureEdgeZoneClusterSpec(ctx context.Context, inputGetter func() AzureEdgeZ
 			Expect(string(machine.ExtendedLocation.Type)).To(Equal(extendedLocationType))
 		}
 	}
-
 }

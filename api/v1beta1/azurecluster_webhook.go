@@ -47,11 +47,11 @@ func (c *AzureCluster) Default() {
 
 // ValidateCreate implements webhook.Validator so a webhook will be registered for the type.
 func (c *AzureCluster) ValidateCreate() error {
-	// NOTE: AzureCluster with ExtendedLocation field is behind EdgeZone feature gate flag; the web hook
+	// NOTE: AzureCluster with ExtendedLocation is behind EdgeZone feature gate flag; the web hook
 	// must prevent creating new objects in case the feature flag is disabled.
 	if !feature.Gates.Enabled(feature.EdgeZone) && c.Spec.ExtendedLocation != nil {
 		return field.Forbidden(
-			field.NewPath("spec"),
+			field.NewPath("spec", "ExtendedLocation"),
 			"can be set only if the EdgeZone feature flag is enabled",
 		)
 	}

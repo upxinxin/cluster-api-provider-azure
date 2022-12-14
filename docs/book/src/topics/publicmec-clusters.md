@@ -70,6 +70,40 @@ clusterctl generate cluster ${CLUSTER_NAME} --kubernetes-version ${KUBERNETES_VE
 # assumes an existing management cluster
 kubectl apply -f edgezone-cluster.yaml
 ```
+## Known issues
+After above deployment, the cluster will be like:
+```bash
+NAME                                                                      READY  SEVERITY  REASON                       SINCE  MESSAGE
+Cluster/private-external-8620                                             False  Warning   ScalingUp                    18m    Scaling up control plane to 3 replicas (actual 1)
+├─ClusterInfrastructure - AzureCluster/private-external-8620              True                                          18m
+├─ControlPlane - KubeadmControlPlane/private-external-8620-control-plane  False  Warning   ScalingUp                    18m    Scaling up control plane to 3 replicas (actual 1)
+│ └─Machine/private-external-8620-control-plane-9rp2g                     True                                          15m
+└─Workers
+  └─MachineDeployment/private-external-8620-md-0                          False  Warning   WaitingForAvailableMachines  21m    Minimum availability requires 2 replicas, current 0 available
+    └─2 Machines...                                                       True                                          13m    See private-external-8620-md-0-7cbcd647f-9vqs8, private-external-8620-md-0-7cbcd647f-hjg8n
+```
+To fix the "False" READY status, [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) needs te be installed by helm.
+First get kubeconfig of the cluster
+```bash
+kubectl get secrets ${CLUSTER_NAME}-kubeconfig -o json | jq -r .data.value | base64 --decode > ./kubeconfig
+```
+Then
+```bash
+helm install --repo https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo cloud-provider-azure --generate-name --set infra.clusterName=${CLUSTER_NAME} --kubeconfig=./kubeconfig
+```
+
+After a while, the cluster will be like:
+```bash
+NAME                                                                      READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/private-external-8620                                             True                     6m38s
+├─ClusterInfrastructure - AzureCluster/private-external-8620              True                     46m
+├─ControlPlane - KubeadmControlPlane/private-external-8620-control-plane  True                     6m38s
+│ └─3 Machines...                                                         True                     7m47s  See private-external-8620-control-plane-6lb57, private-external-8620-control-plane-79mls, ...
+└─Workers
+  └─MachineDeployment/private-external-8620-md-0                          True                     10m
+    └─2 Machines...                                                       True                     41m    See private-external-8620-md-0-7cbcd647f-9vqs8, private-external-8620-md-0-7cbcd647f-hjg8n
+```
+
 
 
 

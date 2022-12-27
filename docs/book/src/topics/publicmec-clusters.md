@@ -7,7 +7,7 @@
 
 Cluster API Provider Azure (CAPZ) experimentally supports deploying clusters on [Azure Public MEC](https://azure.microsoft.com/en-us/solutions/public-multi-access-edge-compute-mec). Before you begin, you may need to prepare an azure subscription which has access to Public MEC.
 
-To deploy a cluster on Public MEC, provide extendedlocation info through environment variable, and use the [Edgezone flavor](https://raw.githubusercontent.com/kubernetes-sigs/cluster-api-provider-azure/main/templates/cluster-template-edgezone.yaml).
+To deploy a cluster on Public MEC, provide extendedlocation info through environment variable, and use the Edgezone flavor.
 
 ## Example: Deploy cluster on Public MEC by `clusterctl`
 
@@ -49,7 +49,7 @@ Public MEC enabled clusters also require the following feature flags set as envi
 export EXP_EDGEZONE=true
 ```
 
-Create a local kind cluster to run the managemenet cluster components:
+Create a local kind cluster to run the management cluster components:
 
 ```bash
 kind create cluster
@@ -82,7 +82,7 @@ Cluster/private-external-8620                                             False 
   └─MachineDeployment/private-external-8620-md-0                          False  Warning   WaitingForAvailableMachines  21m    Minimum availability requires 2 replicas, current 0 available
     └─2 Machines...                                                       True                                          13m    See private-external-8620-md-0-7cbcd647f-9vqs8, private-external-8620-md-0-7cbcd647f-hjg8n
 ```
-To fix the "False" READY status, [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) needs te be installed by helm.
+To fix the "False" READY status, [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) needs to be installed by helm.
 First get kubeconfig of the cluster
 ```bash
 kubectl get secrets ${CLUSTER_NAME}-kubeconfig -o json | jq -r .data.value | base64 --decode > ./kubeconfig

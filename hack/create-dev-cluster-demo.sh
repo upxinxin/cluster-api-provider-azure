@@ -30,26 +30,19 @@ export REGISTRY="${REGISTRY:-registry.local/fake}"
 
 # Cluster settings.
 export CLUSTER_NAME="${CLUSTER_NAME:-capz-test}"
-export AZURE_VNET_NAME=${CLUSTER_NAME}-vnet
+export WORKER_MACHINE_COUNT=2
+export CONTROL_PLANE_MACHINE_COUNT=1
+export KUBERNETES_VERSION="v1.25.0"
 
 # Azure settings.
-export AZURE_LOCATION="${AZURE_LOCATION:-southcentralus}"
-export AZURE_RESOURCE_GROUP=${CLUSTER_NAME}
-
-AZURE_SUBSCRIPTION_ID_B64="$(echo -n "$AZURE_SUBSCRIPTION_ID" | base64 | tr -d '\n')"
-AZURE_TENANT_ID_B64="$(echo -n "$AZURE_TENANT_ID" | base64 | tr -d '\n')"
-AZURE_CLIENT_ID_B64="$(echo -n "$AZURE_CLIENT_ID" | base64 | tr -d '\n')"
-AZURE_CLIENT_SECRET_B64="$(echo -n "$AZURE_CLIENT_SECRET" | base64 | tr -d '\n')"
-
-export AZURE_SUBSCRIPTION_ID_B64 AZURE_TENANT_ID_B64 AZURE_CLIENT_ID_B64 AZURE_CLIENT_SECRET_B64
+export AZURE_LOCATION="eastus2euap"
+export AZURE_EXTENDEDLOCATION_TYPE="EdgeZone"
+export AZURE_EXTENDEDLOCATION_NAME="microsoftrrdclab3"
+export AZURE_RESOURCE_GROUP="${CLUSTER_NAME}"
 
 # Machine settings.
-export CONTROL_PLANE_MACHINE_COUNT=${CONTROL_PLANE_MACHINE_COUNT:-3}
-export AZURE_CONTROL_PLANE_MACHINE_TYPE="${CONTROL_PLANE_MACHINE_TYPE:-Standard_B2s}"
-export AZURE_NODE_MACHINE_TYPE="${NODE_MACHINE_TYPE:-Standard_B2s}"
-export WORKER_MACHINE_COUNT=${WORKER_MACHINE_COUNT:-2}
-export KUBERNETES_VERSION="${KUBERNETES_VERSION:-v1.24.6}"
-export CLUSTER_TEMPLATE="${CLUSTER_TEMPLATE:-cluster-template.yaml}"
+export AZURE_CONTROL_PLANE_MACHINE_TYPE="Standard_D2s_v3"
+export AZURE_NODE_MACHINE_TYPE="Standard_D2s_v3"
 
 # identity secret settings.
 export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"
@@ -72,4 +65,4 @@ echo "================ INSTALL TOOLS ==============="
 make install-tools
 
 echo "================ CREATE CLUSTER ==============="
-make create-management-cluster
+EXP_CLUSTER_RESOURCE_SET=true EXP_AKS=true EXP_MACHINE_POOL=true EXP_EDGEZONE=true make create-management-cluster

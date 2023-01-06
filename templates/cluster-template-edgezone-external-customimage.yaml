@@ -37,7 +37,7 @@ spec:
       type: Internal
       frontendIPs:
         - name: lb-private-ip-frontend
-          privateIP: 10.250.0.100
+          privateIP: 10.251.0.100
     controlPlaneOutboundLB:
       frontendIPsCount: 1
     nodeOutboundLB:
@@ -45,7 +45,7 @@ spec:
     vnet:
       name: ${AZURE_VNET_NAME:=${CLUSTER_NAME}-vnet}
       cidrBlocks: 
-        - 10.250.0.0/16
+        - 10.251.0.0/16
       peerings:
       - resourceGroup: xinyi-capz-dev_group_10131455
         remoteVnetName: xinyi-capz-dev_group_10131455-vnet
@@ -53,11 +53,11 @@ spec:
     - name: control-plane-subnet
       role: control-plane
       cidrBlocks: 
-          - 10.250.0.0/24
+          - 10.251.0.0/24
     - name: node-subnet
       role: node
       cidrBlocks: 
-          - 10.250.1.0/24
+          - 10.251.1.0/24
   resourceGroup: ${AZURE_RESOURCE_GROUP:=${CLUSTER_NAME}}
   subscriptionID: ${AZURE_SUBSCRIPTION_ID}
 ---

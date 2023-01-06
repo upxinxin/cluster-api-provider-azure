@@ -156,7 +156,7 @@ spec:
           subscriptionID: "b9e38f20-7c9c-4497-a25d-1a0c5eef2108"
           gallery: "CAPZimages"
           version: "0.3.1672905248"
-        plan:
+          plan:
             publisher: "capz"
             offer: "capz-demo"
             sku: "18.04-LTS"
@@ -205,7 +205,7 @@ spec:
           subscriptionID: "b9e38f20-7c9c-4497-a25d-1a0c5eef2108"
           gallery: "CAPZimages"
           version: "0.3.1672905248"
-        plan:
+          plan:
             publisher: "capz"
             offer: "capz-demo"
             sku: "18.04-LTS"

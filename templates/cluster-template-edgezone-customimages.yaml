@@ -152,7 +152,7 @@ spec:
       image:
         computeGallery:
           resourceGroup: "capz-images-rg"
-          name: "capi-ubuntu-1804"
+          name: "capi-ubuntu-1804-1672976735"
           subscriptionID: "b9e38f20-7c9c-4497-a25d-1a0c5eef2108"
           gallery: "CAPZimages"
           version: "0.3.1672976735"
@@ -201,7 +201,7 @@ spec:
       image:
         computeGallery:
           resourceGroup: "capz-images-rg"
-          name: "capi-ubuntu-1804"
+          name: "capi-ubuntu-1804-1672976735"
           subscriptionID: "b9e38f20-7c9c-4497-a25d-1a0c5eef2108"
           gallery: "CAPZimages"
           version: "0.3.1672976735"

@@ -155,7 +155,7 @@ spec:
           name: "capi-ubuntu-1804"
           subscriptionID: "b9e38f20-7c9c-4497-a25d-1a0c5eef2108"
           gallery: "CAPZimages"
-          version: "0.3.1672905248"
+          version: "0.3.1672976735"
           plan:
             publisher: "capz"
             offer: "capz-demo"
@@ -204,7 +204,7 @@ spec:
           name: "capi-ubuntu-1804"
           subscriptionID: "b9e38f20-7c9c-4497-a25d-1a0c5eef2108"
           gallery: "CAPZimages"
-          version: "0.3.1672905248"
+          version: "0.3.1672976735"
           plan:
             publisher: "capz"
             offer: "capz-demo"

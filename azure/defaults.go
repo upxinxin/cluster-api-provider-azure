@@ -21,7 +21,7 @@ import (
 	"net/http"
 
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
+	azureautorest "github.com/Azure/go-autorest/autorest/azure"
 	"sigs.k8s.io/cluster-api-provider-azure/util/tele"
 	"sigs.k8s.io/cluster-api-provider-azure/version"
 )
@@ -174,7 +174,10 @@ func GenerateVNetLinkName(vnetName string) string {
 }
 
 // GenerateNICName generates the name of a network interface based on the name of a VM.
-func GenerateNICName(machineName string) string {
+func GenerateNICName(machineName string, multiNIC bool, index int) string {
+	if multiNIC {
+		return fmt.Sprintf("%s-nic-%d", machineName, index)
+	}
 	return fmt.Sprintf("%s-nic", machineName)
 }
 
@@ -303,7 +306,7 @@ func ManagedClusterID(subscriptionID, resourceGroup, managedClusterName string) 
 // Its role is to detect and report Kubernetes bootstrap failure or success.
 func GetBootstrappingVMExtension(osType string, cloud string, vmName string) *ExtensionSpec {
 	// currently, the bootstrap extension is only available in AzurePublicCloud.
-	if osType == LinuxOS && cloud == azure.PublicCloud.Name {
+	if osType == LinuxOS && cloud == azureautorest.PublicCloud.Name {
 		// The command checks for the existence of the bootstrapSentinelFile on the machine, with retries and sleep between retries.
 		return &ExtensionSpec{
 			Name:      "CAPZ.Linux.Bootstrapping",
@@ -314,7 +317,7 @@ func GetBootstrappingVMExtension(osType string, cloud string, vmName string) *Ex
 				"commandToExecute": LinuxBootstrapExtensionCommand,
 			},
 		}
-	} else if osType == WindowsOS && cloud == azure.PublicCloud.Name {
+	} else if osType == WindowsOS && cloud == azureautorest.PublicCloud.Name {
 		// This command for the existence of the bootstrapSentinelFile on the machine, with retries and sleep between reties.
 		// If the file is not present after the retries are exhausted the extension fails with return code '-2' - ERROR_FILE_NOT_FOUND.
 		return &ExtensionSpec{

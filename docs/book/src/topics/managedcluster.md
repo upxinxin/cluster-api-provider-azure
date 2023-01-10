@@ -131,6 +131,11 @@ spec:
   networkPlugin: azure # or kubenet
   sku:
     tier: Free # or Paid
+  addonProfiles:
+  - name: azureKeyvaultSecretsProvider
+    enabled: true
+  - name: azurepolicy
+    enabled: true
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: AzureManagedCluster
@@ -190,9 +195,12 @@ spec:
   sku: Standard_D2s_v4
 ```
 
-The main features for configuration today are
-[networkPolicy](https://docs.microsoft.com/en-us/azure/aks/concepts-network#network-policies) and
-[networkPlugin](https://docs.microsoft.com/en-us/azure/aks/concepts-network#azure-virtual-networks).
+The main features for configuration are:
+
+- [networkPolicy](https://docs.microsoft.com/en-us/azure/aks/concepts-network#network-policies)
+- [networkPlugin](https://docs.microsoft.com/en-us/azure/aks/concepts-network#azure-virtual-networks)
+- [addonProfiles](https://learn.microsoft.com/cli/azure/aks/addon?view=azure-cli-latest#az-aks-addon-list-available) - for additional addons not listed below, look for the `*ADDON_NAME` values in [this code](https://github.com/Azure/azure-cli/blob/main/src/azure-cli/azure/cli/command_modules/acs/_consts.py).
+
 Other configuration values like subscriptionId and node machine type
 should be fairly clear from context.
 
@@ -200,6 +208,20 @@ should be fairly clear from context.
 |---------------------------|-------------------------------|
 | networkPlugin             | azure, kubenet                |
 | networkPolicy             | azure, calico                 |
+
+| addon name                | YAML value                |
+|---------------------------|---------------------------|
+| http_application_routing  | httpApplicationRouting    |
+| monitoring                | omsagent                  |
+| virtual-node              | aciConnector              |
+| kube-dashboard            | kubeDashboard             |
+| azure-policy              | azurepolicy               |
+| ingress-appgw             | ingressApplicationGateway |
+| confcom                   | ACCSGXDevicePlugin        |
+| open-service-mesh         | openServiceMesh           |
+| azure-keyvault-secrets-provider |  azureKeyvaultSecretsProvider |
+| gitops                    | Unsupported?              |
+| web_application_routing   | Unsupported?              |
 
 ### Use an existing Virtual Network to provision an AKS cluster
 
@@ -365,6 +387,30 @@ spec:
   osDiskSizeGB: 30
   sku: Standard_D2s_v3
   osDiskType: "Ephemeral"
+```
+
+## AKS Node Pool KubeletDiskType configuration
+
+You can configure the `KubeletDiskType` value for each AKS node pool (`AzureManagedMachinePool`) that you define in your spec (see [here](https://learn.microsoft.com/en-us/rest/api/aks/agent-pools/create-or-update?tabs=HTTP#kubeletdisktype) for the official AKS documentation). There are two options to choose from: `"OS"` or `"Temporary"`.
+
+Before this feature can be used, you must register the `KubeletDisk` feature on your Azure subscription with the following az cli command.
+
+```bash
+az feature register --namespace Microsoft.ContainerService --name KubeletDisk
+```
+
+Below an example `kubeletDiskType` configuration is assigned to `agentpool0`, specifying that the emptyDir volumes, container runtime data root, and Kubelet ephemeral storage will be stored on the temporary disk:
+
+```yaml
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureManagedMachinePool
+metadata:
+  name: agentpool0
+spec:
+  mode: System
+  osDiskSizeGB: 30
+  sku: Standard_D2s_v3
+  kubeletDiskType: "Temporary"
 ```
 
 ### AKS Node Pool Taints
@@ -559,6 +605,7 @@ Following is the list of immutable fields for managed clusters:
 | AzureManagedControlPlane  | .spec.apiServerAccessProfile | except AuthorizedIPRanges |
 | AzureManagedControlPlane  | .spec.virtualNetwork         |                           |
 | AzureManagedControlPlane  | .spec.virtualNetwork.subnet  | except serviceEndpoints   |
+| AzureManagedMachinePool   | .spec.name                   |                           |
 | AzureManagedMachinePool   | .spec.sku                    |                           |
 | AzureManagedMachinePool   | .spec.osDiskSizeGB           |                           |
 | AzureManagedMachinePool   | .spec.osDiskType             |                           |

@@ -147,7 +147,7 @@ var _ = Describe("Workload cluster creation", func() {
 		logCheckpoint(specTimes)
 	})
 
-	if os.Getenv("LOCAL_ONLY") != "true" {
+	if os.Getenv("USE_LOCAL_KIND_REGISTRY") != "true" {
 		// This spec expects a user-assigned identity with Contributor role assignment named "cloud-provider-user-identity" in a "capz-ci"
 		// resource group. Override these defaults by setting the USER_IDENTITY and CI_RG environment variables.
 		Context("Creating a private cluster [OPTIONAL]", func() {
@@ -514,7 +514,7 @@ var _ = Describe("Workload cluster creation", func() {
 				},
 				WaitForClusterIntervals:      e2eConfig.GetIntervals(specName, "wait-cluster"),
 				WaitForControlPlaneIntervals: e2eConfig.GetIntervals(specName, "wait-control-plane"),
-				WaitForMachinePools:          e2eConfig.GetIntervals(specName, "wait-machine-pool-nodes"),
+				WaitForMachineDeployments:    e2eConfig.GetIntervals(specName, "wait-worker-nodes"),
 				ControlPlaneWaiters: clusterctl.ControlPlaneWaiters{
 					WaitForControlPlaneInitialized: EnsureControlPlaneInitialized,
 				},

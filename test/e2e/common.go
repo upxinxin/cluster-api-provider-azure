@@ -53,7 +53,7 @@ const (
 	AddonsPath                      = "ADDONS_PATH"
 	RedactLogScriptPath             = "REDACT_LOG_SCRIPT"
 	AzureLocation                   = "AZURE_LOCATION"
-  AzureExtendedLocationType       = "AZURE_EXTENDEDLOCATION_TYPE"
+	AzureExtendedLocationType       = "AZURE_EXTENDEDLOCATION_TYPE"
 	AzureExtendedLocationName       = "AZURE_EXTENDEDLOCATION_NAME"
 	AzureResourceGroup              = "AZURE_RESOURCE_GROUP"
 	AzureVNetName                   = "AZURE_VNET_NAME"

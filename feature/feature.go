@@ -37,9 +37,9 @@ const (
 
 	// EdgeZone is the feature gate for creating clusters on public MEC.
 	// owner: @upxinxin
-	// alpha: v0.1
+	// alpha: v1.7
 	EdgeZone featuregate.Feature = "EdgeZone"
-  
+
 	// AKSResourceHealth is the feature gate for reporting Azure Resource Health
 	// on AKS managed clusters.
 	// owner: @nojnhuh
@@ -56,6 +56,6 @@ func init() {
 var defaultCAPZFeatureGates = map[featuregate.Feature]featuregate.FeatureSpec{
 	// Every feature should be initiated here:
 	AKS:               {Default: false, PreRelease: featuregate.Alpha},
-  	EdgeZone:          {Default: false, PreRelease: featuregate.Alpha},
+	EdgeZone:          {Default: false, PreRelease: featuregate.Alpha},
 	AKSResourceHealth: {Default: false, PreRelease: featuregate.Alpha},
 }

@@ -31,7 +31,7 @@ Create a new service principal and save to local file:
 ```bash
 az ad sp create-for-rbac --role Contributor --scopes="/subscriptions/${AZURE_SUBSCRIPTION_ID}" --sdk-auth > sp.json
 ```
-Export the following variables to you current shell:
+Export the following variables to your current shell:
 ```bash
 export AZURE_SUBSCRIPTION_ID="$(cat sp.json | jq -r .subscriptionId | tr -d '\n')"
 export AZURE_CLIENT_SECRET="$(cat sp.json | jq -r .clientSecret | tr -d '\n')"
@@ -67,35 +67,14 @@ Execute clusterctl to template the resources:
 clusterctl init --infrastructure azure
 clusterctl generate cluster ${CLUSTER_NAME} --kubernetes-version ${KUBERNETES_VERSION} --flavor edgezone > edgezone-cluster.yaml
 ```
-[Build CAPI images for Azure](https://image-builder.sigs.k8s.io/capi/providers/azure.html) and add image spec under AzureMachineTemplates. This step is now required by users, but we may provider CAPI images on edgezone sites and skip the step in the future.
-```bash
-apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
-kind: AzureMachineTemplate
-metadata:
-  name: ${CLUSTER_NAME}-control-plane
-  namespace: default
-spec:
-  template:
-    spec:
-      dataDisks:
-      - diskSizeGB: 256
-        lun: 0
-        nameSuffix: etcddisk
-      osDisk:
-        diskSizeGB: 128
-        osType: Linux
-      sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
-      vmSize: ${AZURE_CONTROL_PLANE_MACHINE_TYPE}
-      image:
-        id: /subscriptions/b9e38f20-7c9c-4497-a25d-1a0c5eef2108/resourceGroups/capz-images-rg/providers/Microsoft.Compute/galleries/CAPZimages/images/capi-canada
-```
+Public MEC doesn't have access to CAPI images in Azure Marketplace, therefore, user need to prepare CAPI image by himself. You can follow doc [Custom Images](https://capz.sigs.k8s.io/topics/custom-images.html) to setup custom image.
+
 Apply the modifed template to your kind management cluster:
 ```bash
 kubectl apply -f edgezone-cluster.yaml
 ```
 
-Install [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) by helm. (Reference: https://capz.sigs.k8s.io/topics/addons.html#external-cloud-provider)
-The minimum version for “out-of-tree” Azure cloud provider is v1.0.3, and “in-tree” Azure cloud provider is not supported.
+Once target cluster's control plane is up, install [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) by helm. The minimum version for "out-of-tree" Azure cloud provider is v1.0.3,  "in-tree" Azure cloud provider is not supported. (Reference: https://capz.sigs.k8s.io/topics/addons.html#external-cloud-provider)
 
 ```bash
 # get the kubeconfig of the cluster

@@ -53,7 +53,7 @@ capz::util::get_random_region_gpu() {
 }
 # all regions below must support ExtendedLocation
 capz::util::get_random_region_edgezone() {
-    local REGIONS=("eastus2euap")
+    local REGIONS=("canadacentral")
     echo "${REGIONS[${RANDOM} % ${#REGIONS[@]}]}"
 }
 

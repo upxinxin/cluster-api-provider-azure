@@ -31,7 +31,7 @@ Create a new service principal and save to local file:
 ```bash
 az ad sp create-for-rbac --role Contributor --scopes="/subscriptions/${AZURE_SUBSCRIPTION_ID}" --sdk-auth > sp.json
 ```
-Export the following variables to you current shell.
+Export the following variables to you current shell:
 ```bash
 export AZURE_SUBSCRIPTION_ID="$(cat sp.json | jq -r .subscriptionId | tr -d '\n')"
 export AZURE_CLIENT_SECRET="$(cat sp.json | jq -r .clientSecret | tr -d '\n')"
@@ -61,51 +61,45 @@ Create an identity secret on the management cluster:
 kubectl create secret generic "${AZURE_CLUSTER_IDENTITY_SECRET_NAME}" --from-literal=clientSecret="${AZURE_CLIENT_SECRET}"
 ```
 
-Execute clusterctl to template the resources, then apply to your kind management cluster.
+Execute clusterctl to template the resources:
 
 ```bash
 clusterctl init --infrastructure azure
 clusterctl generate cluster ${CLUSTER_NAME} --kubernetes-version ${KUBERNETES_VERSION} --flavor edgezone > edgezone-cluster.yaml
-
-# assumes an existing management cluster
+```
+[Build CAPI images for Azure](https://image-builder.sigs.k8s.io/capi/providers/azure.html) and add image spec under AzureMachineTemplates. This step is now required by users, but we may provider CAPI images on edgezone sites and skip the step in the future.
+```bash
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      dataDisks:
+      - diskSizeGB: 256
+        lun: 0
+        nameSuffix: etcddisk
+      osDisk:
+        diskSizeGB: 128
+        osType: Linux
+      sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
+      vmSize: ${AZURE_CONTROL_PLANE_MACHINE_TYPE}
+      image:
+        id: /subscriptions/b9e38f20-7c9c-4497-a25d-1a0c5eef2108/resourceGroups/capz-images-rg/providers/Microsoft.Compute/galleries/CAPZimages/images/capi-canada
+```
+Apply the modifed template to your kind management cluster:
+```bash
 kubectl apply -f edgezone-cluster.yaml
 ```
-## Known issues
-After the deployment above, the cluster will look like this:
-```bash
-NAME                                                                      READY  SEVERITY  REASON                       SINCE  MESSAGE
-Cluster/private-external-8620                                             False  Warning   ScalingUp                    18m    Scaling up control plane to 3 replicas (actual 1)
-├─ClusterInfrastructure - AzureCluster/private-external-8620              True                                          18m
-├─ControlPlane - KubeadmControlPlane/private-external-8620-control-plane  False  Warning   ScalingUp                    18m    Scaling up control plane to 3 replicas (actual 1)
-│ └─Machine/private-external-8620-control-plane-9rp2g                     True                                          15m
-└─Workers
-  └─MachineDeployment/private-external-8620-md-0                          False  Warning   WaitingForAvailableMachines  21m    Minimum availability requires 2 replicas, current 0 available
-    └─2 Machines...                                                       True                                          13m    See private-external-8620-md-0-7cbcd647f-9vqs8, private-external-8620-md-0-7cbcd647f-hjg8n
-```
-To fix the "False" READY status, [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) need to be installed by Helm. 
-The minimum version for "out-of-tree" Azure cloud provider is v1.0.3, and "in-tree" Azure cloud provider is not supported.
 
-First, get the kubeconfig of the cluster:
+Install [Azure cloud provider components](https://github.com/kubernetes-sigs/cloud-provider-azure/tree/master/helm/cloud-provider-azure) by helm. (Reference: https://capz.sigs.k8s.io/topics/addons.html#external-cloud-provider)
+The minimum version for “out-of-tree” Azure cloud provider is v1.0.3, and “in-tree” Azure cloud provider is not supported.
+
 ```bash
+# get the kubeconfig of the cluster
 kubectl get secrets ${CLUSTER_NAME}-kubeconfig -o json | jq -r .data.value | base64 --decode > ./kubeconfig
-```
-Then
-```bash
+
 helm install --repo https://raw.githubusercontent.com/kubernetes-sigs/cloud-provider-azure/master/helm/repo cloud-provider-azure --generate-name --set infra.clusterName=${CLUSTER_NAME} --kubeconfig=./kubeconfig
 ```
-
-After a while, the cluster should look like this:
-```bash
-NAME                                                                      READY  SEVERITY  REASON  SINCE  MESSAGE
-Cluster/private-external-8620                                             True                     6m38s
-├─ClusterInfrastructure - AzureCluster/private-external-8620              True                     46m
-├─ControlPlane - KubeadmControlPlane/private-external-8620-control-plane  True                     6m38s
-│ └─3 Machines...                                                         True                     7m47s  See private-external-8620-control-plane-6lb57, private-external-8620-control-plane-79mls, ...
-└─Workers
-  └─MachineDeployment/private-external-8620-md-0                          True                     10m
-    └─2 Machines...                                                       True                     41m    See private-external-8620-md-0-7cbcd647f-9vqs8, private-external-8620-md-0-7cbcd647f-hjg8n
-```
-
-
-
-

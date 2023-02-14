@@ -149,10 +149,16 @@ spec:
       dataDisks:
       - diskSizeGB: 256
         lun: 0
+        managedDisk:
+          storageAccountType: StandardSSD_LRS
         nameSuffix: etcddisk
       identity: UserAssigned
+      image:
+        id: /subscriptions/b9e38f20-7c9c-4497-a25d-1a0c5eef2108/resourceGroups/capz-images-rg/providers/Microsoft.Compute/galleries/CAPZimages/images/capi-canada
       osDisk:
         diskSizeGB: 128
+        managedDisk:
+          storageAccountType: StandardSSD_LRS
         osType: Linux
       sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
       userAssignedIdentities:
@@ -192,8 +198,12 @@ spec:
   template:
     spec:
       identity: UserAssigned
+      image:
+        id: /subscriptions/b9e38f20-7c9c-4497-a25d-1a0c5eef2108/resourceGroups/capz-images-rg/providers/Microsoft.Compute/galleries/CAPZimages/images/capi-canada
       osDisk:
         diskSizeGB: 128
+        managedDisk:
+          storageAccountType: StandardSSD_LRS
         osType: Linux
       sshPublicKey: ${AZURE_SSH_PUBLIC_KEY_B64:=""}
       userAssignedIdentities:

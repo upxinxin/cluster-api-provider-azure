@@ -10,3 +10,4 @@ patchesStrategicMerge:
   - ../patches/uami-md-0.yaml
   - ../patches/uami-control-plane.yaml
   - patches/azurecluster-edgezone.yaml
+  - patches/azure-machine-template.yaml

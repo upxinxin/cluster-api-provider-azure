@@ -1,0 +1,34 @@
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+  namespace: default
+spec:
+  template:
+    spec:
+      dataDisks:
+      - diskSizeGB: 256
+        lun: 0
+        nameSuffix: etcddisk
+        managedDisk:
+          storageAccountType: StandardSSD_LRS
+      osDisk:
+        managedDisk:
+          storageAccountType: StandardSSD_LRS
+      image:
+        id: "/subscriptions/b9e38f20-7c9c-4497-a25d-1a0c5eef2108/resourceGroups/capz-images-rg/providers/Microsoft.Compute/galleries/CAPZimages/images/capi-canada"
+---
+apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+kind: AzureMachineTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+  namespace: default
+spec:
+  template:
+    spec:
+      osDisk:
+        managedDisk:
+          storageAccountType: StandardSSD_LRS
+      image:
+        id: "/subscriptions/b9e38f20-7c9c-4497-a25d-1a0c5eef2108/resourceGroups/capz-images-rg/providers/Microsoft.Compute/galleries/CAPZimages/images/capi-canada"
+      
